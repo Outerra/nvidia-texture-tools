@@ -108,7 +108,8 @@ namespace nvtt
         //Format_BC5_Luma,    // Two DXT alpha blocks encoding a single float.
         Format_BC3_RGBM,    // 
 
-        Format_Count
+        Format_Count,
+        Format_Unknown,
     };
 
     // Pixel types. These basically indicate how the output should be interpreted, but do not have any influence over the input. They are only relevant in RGBA mode.

@@ -370,8 +370,10 @@ namespace nv
         bool isValid() const;
         bool isSupported() const;
 
+        bool isRGB() const;
         bool hasAlpha() const;
-
+        bool isLuminance() const;
+        uint fourcc() const;
         uint mipmapCount() const;
         uint width() const;
         uint height() const;

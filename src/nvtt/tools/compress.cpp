@@ -29,6 +29,7 @@
 #include <nvimage/ImageIO.h>
 #include <nvimage/FloatImage.h>
 #include <nvimage/DirectDrawSurface.h>
+#include <nvimage/HoleFilling.h>
 
 #include <nvcore/Ptr.h> // AutoPtr
 #include <nvcore/StrLib.h> // Path
@@ -132,6 +133,14 @@ void setColorMap(nvtt::InputOptions & inputOptions)
     inputOptions.setNormalizeMipmaps(false);
 }
 
+// Set options for linear maps.
+void setLinearMap(nvtt::InputOptions & inputOptions)
+{
+	inputOptions.setNormalMap(false);
+	inputOptions.setConvertToNormalMap(false);
+	inputOptions.setGamma(1.0f, 1.0f);
+	inputOptions.setNormalizeMipmaps(false);
+}
 
 
 int main(int argc, char *argv[])
@@ -142,6 +151,7 @@ int main(int argc, char *argv[])
     bool alpha = false;
     bool normal = false;
     bool color2normal = false;
+    bool linear = false;
     bool wrapRepeat = false;
     bool noMipmaps = false;
     bool fast = false;
@@ -149,6 +159,8 @@ int main(int argc, char *argv[])
     bool bc1n = false;
     bool luminance = false;
     nvtt::Format format = nvtt::Format_BC1;
+    bool fillHoles = false;
+    bool outProvided = false;
     bool premultiplyAlpha = false;
     nvtt::MipmapFilter mipmapFilter = nvtt::MipmapFilter_Box;
     bool loadAsFloat = false;
@@ -183,6 +195,10 @@ int main(int argc, char *argv[])
         {
             color2normal = true;
         }
+		else if (strcmp("-linear", argv[i]) == 0)
+		{
+			linear = true;
+		}
         else if (strcmp("-clamp", argv[i]) == 0)
         {
         }
@@ -193,6 +209,10 @@ int main(int argc, char *argv[])
         else if (strcmp("-nomips", argv[i]) == 0)
         {
             noMipmaps = true;
+        }
+        else if (strcmp("-fillholes", argv[i]) == 0)
+        {
+            fillHoles = true;
         }
         else if (strcmp("-premula", argv[i]) == 0)
         {
@@ -316,6 +336,14 @@ int main(int argc, char *argv[])
 
             if (i+1 < argc && argv[i+1][0] != '-') {
                 output = argv[i+1];
+                if(output.endsWith("\\") || output.endsWith("/")) {
+                    //only path specified
+                    output.append(input.fileName());
+				    output.stripExtension();
+				    output.append(".dds");
+               }
+               else
+                   outProvided = true;
             }
             else
             {
@@ -351,6 +379,7 @@ int main(int argc, char *argv[])
         printf("  -color        The input image is a color map (default).\n");
         printf("  -alpha        The input image has an alpha channel used for transparency.\n");
         printf("  -normal       The input image is a normal map.\n");
+        printf("  -linear       The input is in linear color space.\n");
         printf("  -tonormal     Convert input to normal map.\n");
         printf("  -clamp        Clamp wrapping mode (default).\n");
         printf("  -repeat       Repeat wrapping mode.\n");
@@ -360,6 +389,7 @@ int main(int argc, char *argv[])
         printf("  -float        Load as floating point image.\n\n");
         printf("  -rgbm         Transform input to RGBM.\n\n");
         printf("  -rangescale   Scale image to use entire color range.\n\n");
+        printf("  -fillholes    Fill transparent areas with nearby color. Note: adds transparent upper height into output file name in case the outfile was not specified, and infile was in form #.####.xxx.ext\n\n");
 
         printf("Compression options:\n");
         printf("  -fast         Fast compression.\n");
@@ -397,6 +427,45 @@ int main(int argc, char *argv[])
 
     bool useSurface = false;    // @@ use Surface API in all cases!
     nvtt::Surface image;
+
+    if (format == nvtt::Format_Unknown && nv::strCaseDiff(input.extension(), ".dds") == 0)
+    {
+        // Load surface.
+        nv::DirectDrawSurface dds(input.str());
+        if (!dds.isValid())
+        {
+            fprintf(stderr, "The file '%s' is not a valid DDS file.\n", input.str());
+            return EXIT_FAILURE;
+        }
+
+        if (!dds.isSupported())
+        {
+            fprintf(stderr, "The file '%s' is not a supported DDS file.\n", input.str());
+            return EXIT_FAILURE;
+        }
+
+        //if format not specified, get from dds
+        if (dds.isRGB())
+            format = nvtt::Format_RGB;
+        else if (dds.isLuminance()) {
+            luminance = true;
+            format = nvtt::Format_RGB;
+        }
+        else {
+            uint cc = dds.fourcc();
+            switch(cc) {
+            case nv::FOURCC_DXT1:   format = nvtt::Format_DXT1; break;
+            case nv::FOURCC_DXT3:   format = nvtt::Format_DXT3; break;
+            case nv::FOURCC_DXT5:   format = nvtt::Format_DXT5; break;
+            case nv::FOURCC_RXGB:   format = nvtt::Format_BC3n; break;
+            case nv::FOURCC_ATI1:   format = nvtt::Format_BC4; break;
+            case nv::FOURCC_ATI2:   format = nvtt::Format_BC5; break;
+            }
+        }
+
+        alpha = dds.hasAlpha();
+    }
+
 
     if (format == nvtt::Format_BC3_RGBM || rgbm) {
         useSurface = true;
@@ -543,10 +612,52 @@ int main(int argc, char *argv[])
                     return 1;
                 }
 
+                if(fillHoles) {
+                    nv::FloatImage fimage(&image);
+
+                    // create feature mask
+                    nv::BitMap bmp(image.width(),image.height());
+                    bmp.clearAll();
+                    const int w=image.width();
+                    const int h=image.height();
+                    int ytr = h;   //height of the transparent part
+                    for(int y=0; y<h; ++y)
+                        for(int x=0; x<w; ++x) 
+                            if(fimage.pixel(3,x,y,0) >= 0.5f) {
+                                bmp.setBitAt(x,y);
+                                if(y < ytr) ytr = y;
+                            }
+
+
+                    // fill holes
+                    nv::fillVoronoi(&fimage,&bmp);
+
+                    // do blur passes
+                    for(int i=0; i<8; ++i)
+                        nv::fillBlur(&fimage,&bmp);
+
+                    nv::AutoPtr<nv::Image> img(fimage.createImage(0));
+
+                    inputOptions.setTextureLayout(nvtt::TextureType_2D, img->width(), img->height());
+                    inputOptions.setMipmapData(img->pixels(), img->width(), img->height());
+
+                    //change outfile
+                    if(!outProvided) {
+                        output.stripExtension();
+                        output.appendFormat(".%i.dds", ytr);
+                    }
+                }
+
                 inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width(), image.height());
                 inputOptions.setMipmapData(image.pixels(), image.width(), image.height());
             }
+
         }
+
+
+        if (format == nvtt::Format_Unknown)
+            format = nvtt::Format_BC1;
+
 
         if (wrapRepeat)
         {
@@ -572,7 +683,11 @@ int main(int argc, char *argv[])
             inputOptions.setRoundMode(nvtt::RoundMode_ToPreviousPowerOfTwo);
         }
 
-        if (normal)
+        if (linear)
+        {
+            setLinearMap(inputOptions);
+        }
+        else if (normal)
         {
             setNormalMap(inputOptions);
         }

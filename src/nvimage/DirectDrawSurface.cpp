@@ -1001,6 +1001,11 @@ bool DirectDrawSurface::isSupported() const
     return true;
 }
 
+bool DirectDrawSurface::isRGB() const
+{
+    return (header.pf.flags & DDPF_RGB) != 0;
+}
+
 bool DirectDrawSurface::hasAlpha() const
 {
     if (header.hasDX10Header())
@@ -1035,6 +1040,18 @@ bool DirectDrawSurface::hasAlpha() const
 
         return false;
     }
+}
+
+bool DirectDrawSurface::isLuminance() const
+{
+    return (header.pf.flags & DDPF_LUMINANCE) != 0;
+}
+
+uint DirectDrawSurface::fourcc() const
+{
+    return (header.pf.flags & DDPF_FOURCC) != 0
+        ? header.pf.fourcc
+        : 0;
 }
 
 uint DirectDrawSurface::mipmapCount() const
