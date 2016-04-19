@@ -263,9 +263,20 @@ namespace nv
         DXGI_FORMAT_BC7_UNORM_SRGB = 99,
     };
 
-
-
     extern uint findD3D9Format(uint bitcount, uint rmask, uint gmask, uint bmask, uint amask);
+
+    extern uint findDXGIFormat(uint bitcount, uint rmask, uint gmask, uint bmask, uint amask);
+
+    struct RGBAPixelFormat
+    {
+        uint bitcount;
+        uint rmask;
+        uint gmask;
+        uint bmask;
+        uint amask;
+    };
+
+    extern const RGBAPixelFormat *findDXGIPixelFormat(uint dxgiFormat);
 
     struct NVIMAGE_CLASS DDSPixelFormat
     {
@@ -325,6 +336,7 @@ namespace nv
         void setTexture2D();
         void setTexture3D();
         void setTextureCube();
+        void setTextureArray(int imageCount);
         void setLinearSize(uint size);
         void setPitch(uint pitch);
         void setFourCC(uint8 c0, uint8 c1, uint8 c2, uint8 c3);
@@ -378,10 +390,12 @@ namespace nv
         uint width() const;
         uint height() const;
         uint depth() const;
+        uint arraySize() const;
         bool isTexture1D() const;
         bool isTexture2D() const;
         bool isTexture3D() const;
         bool isTextureCube() const;
+        bool isTextureArray() const;
 
         void setNormalFlag(bool b);
         void setHasAlphaFlag(bool b);
@@ -405,7 +419,7 @@ namespace nv
         uint faceSize() const;
         uint offset(uint face, uint mipmap);
 
-        void readLinearImage(Image * img);
+        void readLinearImage(Image * img, uint bitcount, uint rmask, uint gmask, uint bmask, uint amask);
         void readBlockImage(Image * img);
         void readBlock(ColorBlock * rgba);
 
