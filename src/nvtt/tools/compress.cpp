@@ -647,9 +647,10 @@ int main(int argc, char *argv[])
                         output.appendFormat(".%i.dds", ytr);
                     }
                 }
-
-                inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width(), image.height());
-                inputOptions.setMipmapData(image.pixels(), image.width(), image.height());
+                else {
+                    inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width(), image.height());
+                    inputOptions.setMipmapData(image.pixels(), image.width(), image.height());
+                }
             }
 
         }
@@ -680,7 +681,7 @@ int main(int argc, char *argv[])
         // Block compressed textures with mipmaps must be powers of two.
         if (!noMipmaps && format != nvtt::Format_RGB)
         {
-            inputOptions.setRoundMode(nvtt::RoundMode_ToPreviousPowerOfTwo);
+            //inputOptions.setRoundMode(nvtt::RoundMode_ToPreviousPowerOfTwo);
         }
 
         if (linear)
