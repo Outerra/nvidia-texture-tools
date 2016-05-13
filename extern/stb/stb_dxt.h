@@ -16,6 +16,12 @@
 //   v1.02  - (stb) fix alpha encoding bug
 //   v1.01  - (stb) fix bug converting to RGB that messed up quality, thanks ryg & cbloom
 //   v1.00  - (stb) first release
+//
+// LICENSE
+//
+//   This software is dual-licensed to the public domain and under the following
+//   license: you are granted a perpetual, irrevocable license to copy, modify,
+//   publish, and distribute this file as you see fit.
 
 #ifndef STB_INCLUDE_STB_DXT_H
 #define STB_INCLUDE_STB_DXT_H

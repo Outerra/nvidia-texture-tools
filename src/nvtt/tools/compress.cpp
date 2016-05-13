@@ -37,6 +37,7 @@
 #include <nvcore/FileSystem.h>
 #include <nvcore/Timer.h>
 
+#include <nvmath/Color.h>
 
 struct MyOutputHandler : public nvtt::OutputHandler
 {
@@ -160,6 +161,7 @@ int main(int argc, char *argv[])
     bool luminance = false;
     nvtt::Format format = nvtt::Format_BC1;
     bool fillHoles = false;
+    bool countEmptyRows = false;
     bool outProvided = false;
     bool premultiplyAlpha = false;
     nvtt::MipmapFilter mipmapFilter = nvtt::MipmapFilter_Box;
@@ -213,6 +215,10 @@ int main(int argc, char *argv[])
         else if (strcmp("-fillholes", argv[i]) == 0)
         {
             fillHoles = true;
+        }
+        else if (strcmp("-countempty", argv[i]) == 0)
+        {
+            countEmptyRows = true;
         }
         else if (strcmp("-premula", argv[i]) == 0)
         {
@@ -615,6 +621,30 @@ int main(int argc, char *argv[])
                     return 1;
                 }
 
+                if(countEmptyRows)
+                {
+                    //count empty rows & append to the file name
+                    const int w = image.width();
+                    const int h = image.height();
+                    int ytr = 0;   //height of the transparent part
+
+                    if(image.format() == image.Format_ARGB) {
+                        for(int y=0; y<h; ++y) {
+                            for(int x=0; x<w; ++x) {
+                                if(image.pixel(x,y).a >= 128) {
+                                    ytr = y;
+                                    y = h;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    //change outfile
+                    output.stripExtension();
+                    output.appendFormat(".%04i.dds", ytr);
+                }
+
                 if(fillHoles) {
                     nv::FloatImage fimage(&image);
 
@@ -643,12 +673,6 @@ int main(int argc, char *argv[])
 
                     inputOptions.setTextureLayout(nvtt::TextureType_2D, img->width(), img->height());
                     inputOptions.setMipmapData(img->pixels(), img->width(), img->height());
-
-                    //change outfile
-                    if(!outProvided) {
-                        output.stripExtension();
-                        output.appendFormat(".%i.dds", ytr);
-                    }
                 }
                 else {
                     inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width(), image.height());
