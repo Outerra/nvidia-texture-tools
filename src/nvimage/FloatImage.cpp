@@ -194,12 +194,12 @@ void FloatImage::normalize(uint baseComponent)
     const uint count = m_pixelCount;
     for (uint i = 0; i < count; i++) {
 
-        Vector3 normal(xChannel[i], yChannel[i], zChannel[i]);
+        Vector3 normal(2*xChannel[i]-1, 2*yChannel[i]-1, 2*zChannel[i]-1);
         normal = normalizeSafe(normal, Vector3(0), 0.0f);
 
-        xChannel[i] = normal.x;
-        yChannel[i] = normal.y;
-        zChannel[i] = normal.z;
+        xChannel[i] = 0.5f * (normal.x + 1);
+        yChannel[i] = 0.5f * (normal.y + 1);
+        zChannel[i] = 0.5f * (normal.z + 1);
     }
 }
 
