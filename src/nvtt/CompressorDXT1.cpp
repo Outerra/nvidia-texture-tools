@@ -405,7 +405,7 @@ static void output_block3(const Vector4 input_colors[16], const Vector3 & color_
     Color16 color0 = vector3_to_color16(v0);
     Color16 color1 = vector3_to_color16(v1);
 
-    if (color0.u > color1.u) {
+    if (color0.u < color1.u) {
         swap(color0, color1);
     }
 
