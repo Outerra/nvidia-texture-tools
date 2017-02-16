@@ -13,7 +13,7 @@
 
 #include "nvcore/Ptr.h"
 #include "nvcore/Utils.h"
-#include "nvcore/Array.h"
+#include "nvcore/Array.inl"
 #include "nvcore/StrLib.h"
 #include "nvcore/StdStream.h"
 #include "nvcore/TextWriter.h"
@@ -325,7 +325,7 @@ static bool savePPM(Stream & s, const Image * img)
     writer.writeString("255\n");
     for (uint i = 0; i < w * h; i++) {
         Color32 c = img->pixel(i);
-        s << c.r << c.g << c.b;
+        s << (uint8_t&)c.r << (uint8_t&)c.g << (uint8_t&)c.b;
     }
 
     return true;
@@ -678,7 +678,7 @@ static Image * loadPNG(Stream & s)
     png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
     if (png_ptr == NULL) {
         //	nvDebug( "*** LoadPNG: Error allocating read buffer in file '%s'.\n", name );
-        return false;
+        return NULL;
     }
 
     // Allocate/initialize a memory block for the image information
@@ -686,14 +686,14 @@ static Image * loadPNG(Stream & s)
     if (info_ptr == NULL) {
         png_destroy_read_struct(&png_ptr, NULL, NULL);
         //	nvDebug( "*** LoadPNG: Error allocating image information for '%s'.\n", name );
-        return false;
+        return NULL;
     }
 
     // Set up the error handling
     if (setjmp(png_jmpbuf(png_ptr))) {
         png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
         //	nvDebug( "*** LoadPNG: Error reading png file '%s'.\n", name );
-        return false;
+        return NULL;
     }
 
     // Set up the I/O functions.
@@ -1705,7 +1705,7 @@ static Image * loadSTB(Stream & s)
     int w, h, n;
     uint8 * data = stbi_load_from_memory(buffer, size, &w, &h, &n, 4);
 
-    delete buffer;
+    delete [] buffer;
 
     if (data != NULL) {
         Image * img = new Image;
@@ -1745,7 +1745,7 @@ static FloatImage * loadFloatSTB(Stream & s)
     int w, h, n;
     float * data = stbi_loadf_from_memory(buffer, size, &w, &h, &n, 0);
 
-    delete buffer;
+    delete [] buffer;
 
     // Copy to image.
     if (data != NULL) {

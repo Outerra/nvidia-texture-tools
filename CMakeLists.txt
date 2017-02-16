@@ -6,9 +6,10 @@ SET(NV_CMAKE_DIR "${NV_SOURCE_DIR}/cmake")
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${NV_CMAKE_DIR}")
 
 # GCC check (needs -std:c++11 flag)
-if(CMAKE_COMPILER_IS_GNUCC)
-	ADD_DEFINITIONS("-std=c++11")
-ENDIF(CMAKE_COMPILER_IS_GNUCC)
+#if(CMAKE_COMPILER_IS_GNUCC)
+#	ADD_DEFINITIONS("-std=c++11")
+#ENDIF(CMAKE_COMPILER_IS_GNUCC)
+set (CMAKE_CXX_STANDARD 11)
 
 IF(WIN32)
 	# gnuwin32 paths:
@@ -31,6 +32,7 @@ MESSAGE(STATUS "  Compiler Flags: ${CMAKE_CXX_FLAGS}")
 
 IF(CMAKE_BUILD_TYPE MATCHES "debug")
 	SET(CMAKE_DEBUG_POSTFIX "_d" CACHE STRING "Postfix for debug build libraries.")
+    ADD_DEFINITIONS(-D_DEBUG=1)
 ENDIF()
 
 
@@ -46,9 +48,8 @@ ADD_SUBDIRECTORY(src)
 
 # These files should only be installed when creating packages.
 INSTALL(FILES 
-	NVIDIA_Texture_Tools_LICENSE.txt
-	NVIDIA_Texture_Tools_README.txt
-	ChangeLog 
+	LICENSE
+	README.md
 	DESTINATION share/doc/nvtt)
 
 # Add packaging support
@@ -63,12 +64,12 @@ SET(CPACK_PACKAGE_VERSION_MAJOR "2")
 SET(CPACK_PACKAGE_VERSION_MINOR "1")
 SET(CPACK_PACKAGE_VERSION_PATCH "0")
 SET(CPACK_PACKAGE_VERSION "2.1.0")
-SET(CPACK_PACKAGE_CONTACT "Ignacio Castaño <icastano@nvidia.com>")
-SET(CPACK_PACKAGE_VENDOR "NVIDIA Corporation")
-SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "GPU-accelerated Texture Tools with support for DirectX 10 texture formats")
+SET(CPACK_PACKAGE_CONTACT "Ignacio Castaño <castano@gmail.com>")
+#SET(CPACK_PACKAGE_VENDOR "NVIDIA Corporation")
+SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Texture processing tools with support for Direct3D 10 and 11 formats.")
 
-SET(CPACK_PACKAGE_DESCRIPTION_FILE "${NV_SOURCE_DIR}/NVIDIA_Texture_Tools_README.txt")
-SET(CPACK_RESOURCE_FILE_LICENSE "${NV_SOURCE_DIR}/NVIDIA_Texture_Tools_LICENSE.txt")
+SET(CPACK_PACKAGE_DESCRIPTION_FILE "${NV_SOURCE_DIR}/README.md")
+SET(CPACK_RESOURCE_FILE_LICENSE "${NV_SOURCE_DIR}/LICENSE")
 
 # NSIS options:
 IF(WIN32)

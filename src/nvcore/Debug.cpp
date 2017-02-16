@@ -51,7 +51,7 @@
 #   endif
 #endif
 
-#if NV_OS_DARWIN || NV_OS_FREEBSD || NV_OS_OPENBSD
+#if NV_OS_DARWIN || NV_OS_FREEBSD || NV_OS_NETBSD || NV_OS_OPENBSD
 #   include <sys/types.h>
 #   include <sys/param.h>
 #   include <sys/sysctl.h> // sysctl
@@ -519,11 +519,7 @@ namespace
 #if defined(HAVE_EXECINFO_H)
 
     static bool hasStackTrace() {
-#if NV_OS_DARWIN
-        return backtrace != NULL;
-#else
         return true;
-#endif
     }
 
 
@@ -635,6 +631,19 @@ namespace
 #    else
 #      error "Unknown CPU"
 #    endif
+#elif NV_OS_NETBSD
+#  if NV_CPU_X86_64
+        ucontext_t * ucp = (ucontext_t *)secret;
+        return (void *)ucp->uc_mcontext.__gregs[_REG_RIP];
+#  elif NV_CPU_X86
+        ucontext_t * ucp = (ucontext_t *)secret;
+        return (void *)ucp->uc_mcontext.__gregs[_REG_EIP];
+#  elif NV_CPU_PPC
+        ucontext_t * ucp = (ucontext_t *)secret;
+        return (void *) ucp->uc_mcontext.__gregs[_REG_PC];
+#  else
+#      error "Unknown CPU"
+#  endif
 #elif NV_OS_OPENBSD
 #  if NV_CPU_X86_64
         ucontext_t * ucp = (ucontext_t *)secret;
@@ -666,7 +675,7 @@ namespace
 
         // How to obtain the instruction pointers in different platforms, from mlton's source code.
         // http://mlton.org/
-        // OpenBSD && NetBSD
+        // OpenBSD
         // ucp->sc_eip
         // FreeBSD:
         // ucp->uc_mcontext.mc_eip

@@ -263,6 +263,7 @@ bool Compressor::Private::compress(const InputOptions::Private & inputOptions, c
         if (inputOptions.convertToNormalMap) {
             img.toGreyScale(inputOptions.heightFactors.x, inputOptions.heightFactors.y, inputOptions.heightFactors.z, inputOptions.heightFactors.w);
             img.toNormalMap(inputOptions.bumpFrequencyScale.x, inputOptions.bumpFrequencyScale.y, inputOptions.bumpFrequencyScale.z, inputOptions.bumpFrequencyScale.w);
+            img.packNormals();
         }
 
         // To linear space.
@@ -308,7 +309,7 @@ bool Compressor::Private::compress(const InputOptions::Private & inputOptions, c
             }
             else {
                 if (inputOptions.mipmapFilter == MipmapFilter_Kaiser) {
-                    float params[2] = { inputOptions.kaiserStretch, inputOptions.kaiserAlpha };
+                    float params[2] = { inputOptions.kaiserAlpha, inputOptions.kaiserStretch };
                     img.buildNextMipmap(MipmapFilter_Kaiser, inputOptions.kaiserWidth, params);
                 }
                 else {
@@ -321,7 +322,9 @@ bool Compressor::Private::compress(const InputOptions::Private & inputOptions, c
 
             if (img.isNormalMap()) {
                 if (inputOptions.normalizeMipmaps) {
+                    img.expandNormals();
                     img.normalizeNormalMap();
+                    img.packNormals();
                 }
                 tmp = img;
             }

@@ -306,6 +306,11 @@ LLVM:
 #  define POSH_OS_STRING "FreeBSD"
 #endif
 
+#if defined __NetBSD__
+#  define POSH_OS_NETBSD 1
+#  define POSH_OS_STRING "NetBSD"
+#endif
+
 #if defined __OpenBSD__
 #  define POSH_OS_OPENBSD 1
 #  define POSH_OS_STRING "OpenBSD"
@@ -327,7 +332,7 @@ LLVM:
 #  define POSH_OS_STRING "MinGW"
 #endif
 
-#if defined GO32 && defined DJGPP && defined __MSDOS__ 
+#if defined GO32 && defined DJGPP && defined __MSDOS__
 #  define POSH_OS_GO32 1
 #  define POSH_OS_STRING "GO32/MS-DOS"
 #endif
@@ -451,6 +456,7 @@ LLVM:
 #  define POSH_CPU_PPC 1
 #  if !defined POSH_CPU_STRING
 #    if defined __powerpc64__
+#       define POSH_CPU_PPC64 1
 #       define POSH_CPU_STRING "PowerPC64"
 #    else
 #       define POSH_CPU_STRING "PowerPC"
@@ -671,7 +677,7 @@ LLVM:
 ** the MIPS series, so we have to be careful about those.
 ** ----------------------------------------------------------------------------
 */
-#if defined POSH_CPU_X86 || defined POSH_CPU_AXP || defined POSH_CPU_STRONGARM || defined POSH_CPU_AARCH64 || defined POSH_OS_WIN32 || defined POSH_OS_WINCE || defined __MIPSEL__
+#if defined POSH_CPU_X86 || defined POSH_CPU_AXP || defined POSH_CPU_STRONGARM || defined POSH_CPU_AARCH64 || defined POSH_OS_WIN32 || defined POSH_OS_WINCE || defined __MIPSEL__ || defined __ORDER_LITTLE_ENDIAN__
 #  define POSH_ENDIAN_STRING "little"
 #  define POSH_LITTLE_ENDIAN 1
 #else
@@ -1026,5 +1032,3 @@ extern posh_i64_t  POSH_ReadI64FromBig( const void *src );
 #ifdef __cplusplus
 }
 #endif
-
-
