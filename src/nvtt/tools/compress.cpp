@@ -733,11 +733,11 @@ int main(int argc, char *argv[])
             inputOptions.setMipmapGeneration(false);
         }
 
-        /*if (premultiplyAlpha)
+        if (premultiplyAlpha)
         {
-            inputOptions.setPremultiplyAlpha(true);
+            //inputOptions.setPremultiplyAlpha(true);
             inputOptions.setAlphaMode(nvtt::AlphaMode_Premultiplied);
-        }*/
+        }
 
         inputOptions.setMipmapFilter(mipmapFilter);
     }
