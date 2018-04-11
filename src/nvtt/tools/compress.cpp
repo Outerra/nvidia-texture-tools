@@ -168,11 +168,13 @@ int main(int argc, char *argv[])
     bool loadAsFloat = false;
     bool rgbm = false;
     bool rangescale = false;
+    bool srgb = false;
 
     const char * externalCompressor = NULL;
 
     bool silent = false;
     bool dds10 = false;
+    bool ktx = false;
 
     nv::Path input;
     nv::Path output;
@@ -311,6 +313,31 @@ int main(int argc, char *argv[])
             format = nvtt::Format_BC3_RGBM;
             rgbm = true;
         }
+        else if (strcmp("-etc1", argv[i]) == 0)
+        {
+            format = nvtt::Format_ETC1;
+        }
+        else if (strcmp("-etc2", argv[i]) == 0 || strcmp("-etc2_rgb", argv[i]) == 0)
+        {
+            format = nvtt::Format_ETC2_RGB;
+        }
+        else if (strcmp("-etc2_eac", argv[i]) == 0 || strcmp("-etc2_rgba", argv[i]) == 0)
+        {
+            format = nvtt::Format_ETC2_RGBA;
+        }
+        else if (strcmp("-eac", argv[i]) == 0 || strcmp("-etc2_r", argv[i]) == 0)
+        {
+            format = nvtt::Format_ETC2_R;
+        }
+        else if (strcmp("-etc2_rg", argv[i]) == 0)
+        {
+            format = nvtt::Format_ETC2_R;
+        }
+        else if (strcmp("-etc2_rgbm", argv[i]) == 0)
+        {
+            format = nvtt::Format_ETC2_RGBM;
+            rgbm = true;
+        }
 
         // Undocumented option. Mainly used for testing.
         else if (strcmp("-ext", argv[i]) == 0)
@@ -335,7 +362,15 @@ int main(int argc, char *argv[])
         {
             dds10 = true;
         }
-
+        else if (strcmp("-ktx", argv[i]) == 0)
+        {
+            ktx = true;
+        }
+        else if (strcmp("-srgb", argv[i]) == 0)
+        {
+            srgb = true;
+        }
+        
         else if (argv[i][0] != '-')
         {
             input = argv[i];
@@ -355,7 +390,15 @@ int main(int argc, char *argv[])
             {
                 output.copy(input.str());
                 output.stripExtension();
+                
+                if (ktx)
+                {
+                    output.append(".ktx");
+                }
+                else
+                {
                 output.append(".dds");
+            }
             }
 
             break;
@@ -416,7 +459,9 @@ int main(int argc, char *argv[])
 
         printf("Output options:\n");
         printf("  -silent  \tDo not output progress messages\n");
-        printf("  -dds10   \tUse DirectX 10 DDS format (enabled by default for BC6/7)\n\n");
+        printf("  -dds10   \tUse DirectX 10 DDS format (enabled by default for BC6/7, unless ktx is being used)\n");
+        printf("  -ktx     \tUse KTX container format\n");
+        printf("  -srgb    \tIf the requested format allows it, output will be in sRGB color space\n\n");
 
         return EXIT_FAILURE;
     }
@@ -473,7 +518,7 @@ int main(int argc, char *argv[])
     }
 
 
-    if (format == nvtt::Format_BC3_RGBM || rgbm) {
+    if (format == nvtt::Format_BC3_RGBM || format == nvtt::Format_ETC2_RGBM || rgbm) {
         useSurface = true;
 
         if (!image.load(input.str())) {
@@ -515,7 +560,7 @@ int main(int argc, char *argv[])
         // To gamma.
         image.toGamma(2);
 
-        if (format != nvtt::Format_BC3_RGBM) {
+        if (format != nvtt::Format_BC3_RGBM || format != nvtt::Format_ETC2_RGBM) {
             image.setAlphaMode(nvtt::AlphaMode_None);
             image.toRGBM(1, 0.15f);
         }
@@ -569,7 +614,7 @@ int main(int argc, char *argv[])
                 nvDebugCheck(dds.isTextureArray());
                 inputOptions.setTextureLayout(nvtt::TextureType_Array, dds.width(), dds.height(), 1, dds.arraySize());
                 faceCount = dds.arraySize();
-                dds10 = true;
+                dds10 = ktx ? false : true;
             }
 
             uint mipmapCount = dds.mipmapCount();
@@ -705,11 +750,12 @@ int main(int argc, char *argv[])
             inputOptions.setAlphaMode(nvtt::AlphaMode_None);
         }
 
+        // IC: Do not enforce D3D9 restrictions anymore.
         // Block compressed textures with mipmaps must be powers of two.
-        if (!noMipmaps && format != nvtt::Format_RGB)
+        /*if (!noMipmaps && format != nvtt::Format_RGB)
         {
             //inputOptions.setRoundMode(nvtt::RoundMode_ToPreviousPowerOfTwo);
-        }
+        }*/
 
         if (linear)
         {
@@ -860,15 +906,27 @@ int main(int argc, char *argv[])
     outputOptions.setOutputHandler(&outputHandler);
     outputOptions.setErrorHandler(&errorHandler);
 
+    if (ktx)
+    {
+        outputOptions.setContainer(nvtt::Container_KTX);
+    }
+    else
+    {
 	// Automatically use dds10 if compressing to BC6 or BC7
-	if (format == nvtt::Format_BC6 || format == nvtt::Format_BC7)
-	{
+        if (format == nvtt::Format_BC6 || format == nvtt::Format_BC7) {
 		dds10 = true;
 	}
 
-    if (dds10)
-    {
+        if (dds10) {
         outputOptions.setContainer(nvtt::Container_DDS10);
+    }
+        else {
+            outputOptions.setContainer(nvtt::Container_DDS);
+        }
+    }
+    
+    if (srgb) {
+        outputOptions.setSrgbFlag(true);
     }
 
     // printf("Press ENTER.\n");

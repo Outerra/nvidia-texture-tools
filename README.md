@@ -6,7 +6,7 @@ manipulation tools, designed to be integrated in game tools and asset
 processing pipelines.
 
 The primary features of the library are mipmap and normal map generation, format 
-conversion and DXT compression.
+conversion, and DXT compression.
 
 
 ### How to build (Windows)
@@ -32,15 +32,15 @@ $ sudo make install
 To use the NVIDIA Texture Tools in your own applications you just have to
 include the following header file:
 
-src/nvimage/nvtt/nvtt.h
+src/nvtt/nvtt.h
 
 And include the nvtt library in your projects. 
 
 The following file contains a simple example that shows how to use the library:
 
-src/nvimage/nvtt/compress.cpp
+src/nvtt/tools/compress.cpp
 
 Detailed documentation of the API can be found at:
 
-http://code.google.com/p/nvidia-texture-tools/wiki/ApiDocumentation
+https://github.com/castano/nvidia-texture-tools/wiki/ApiDocumentation
 
