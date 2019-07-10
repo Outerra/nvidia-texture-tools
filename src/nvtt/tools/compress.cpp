@@ -143,6 +143,27 @@ void setLinearMap(nvtt::InputOptions & inputOptions)
 	inputOptions.setNormalizeMipmaps(false);
 }
 
+// convert surface to image
+void toNvImage(const nvtt::Surface& from, nv::Image& to)
+{
+    nv::Color32* data = new nv::Color32[from.width() * from.height()];
+    const int w = from.width();
+    const int h = from.height();
+    const float* r = from.channel(0);
+    const float* g = from.channel(1);
+    const float* b = from.channel(2);
+    const float* a = from.channel(3);
+    for (int j = 0; j < h; ++j) {
+        for (int i = 0; i < w; ++i) {
+            int idx = i + j * w;
+            data[idx].r = uint8(r[idx] * 255.f + 0.5);
+            data[idx].g = uint8(g[idx] * 255.f + 0.5);
+            data[idx].b = uint8(b[idx] * 255.f + 0.5);
+            data[idx].a = uint8(a[idx] * 255.f + 0.5);
+        }
+    }
+    to.acquire(data, w, h);
+}
 
 int main(int argc, char *argv[])
 {
@@ -164,6 +185,8 @@ int main(int argc, char *argv[])
     bool countEmptyRows = false;
     bool outProvided = false;
     bool premultiplyAlpha = false;
+    float scaleCoverage = -1;
+    int scaleCoverageChannel = 3;
     nvtt::MipmapFilter mipmapFilter = nvtt::MipmapFilter_Box;
     bool loadAsFloat = false;
     bool rgbm = false;
@@ -225,6 +248,18 @@ int main(int argc, char *argv[])
         else if (strcmp("-premula", argv[i]) == 0)
         {
             premultiplyAlpha = true;
+        }
+        else if (strcmp("-coverage", argv[i]) == 0)
+        {
+            if (i+1 == argc) break;
+            i++;
+
+            sscanf(argv[i], "%f", &scaleCoverage);
+
+            if (i+1 == argc) break;
+            i++;
+
+            sscanf(argv[i], "%d", &scaleCoverageChannel);
         }
         else if (strcmp("-mipfilter", argv[i]) == 0)
         {
@@ -433,6 +468,8 @@ int main(int argc, char *argv[])
         printf("  -clamp        Clamp wrapping mode (default).\n");
         printf("  -repeat       Repeat wrapping mode.\n");
         printf("  -nomips       Disable mipmap generation.\n");
+        printf("  -coverage     coverage value in range <0; 1>, mipmaps will have the same coverage.\n");
+        printf("                second parameter is number of channel to use\n");
         printf("  -premula      Premultiply alpha into color channel.\n");
         printf("  -mipfilter    Mipmap filter. One of the following: box, triangle, kaiser.\n");
         printf("  -float        Load as floating point image.\n\n");
@@ -690,7 +727,24 @@ int main(int argc, char *argv[])
                     output.appendFormat(".%04i.dds", ytr);
                 }
 
-                if(fillHoles) {
+                if (scaleCoverage > 0) {
+                    nvtt::Surface fimage;
+                    fimage.setImage(nvtt::InputFormat_BGRA_8UB, image.width(), image.height(), 1, image.pixels());
+                    const float cov = fimage.alphaTestCoverage(scaleCoverage, scaleCoverageChannel);
+
+                    inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width(), image.height());
+                    nv::Image img;
+                    toNvImage(fimage, img);
+                    inputOptions.setMipmapData(img.pixels(), img.width(), img.height());
+                    
+                    int mip = 1;
+                    while (fimage.buildNextMipmap(nvtt::MipmapFilter_Kaiser)) {
+                        fimage.scaleAlphaToCoverage(cov, scaleCoverage, scaleCoverageChannel);
+                        inputOptions.setMipmapData(img.pixels(), img.width(), img.height(), 1, 0, mip);
+                        ++mip;
+                    }
+                }
+                else if(fillHoles) {
                     nv::FloatImage fimage(&image);
 
                     // create feature mask
@@ -722,7 +776,7 @@ int main(int argc, char *argv[])
                 else {
                     inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width(), image.height());
                     inputOptions.setMipmapData(image.pixels(), image.width(), image.height());
-                }
+                }a
             }
 
         }
