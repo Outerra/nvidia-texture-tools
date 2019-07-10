@@ -776,7 +776,7 @@ int main(int argc, char *argv[])
                 else {
                     inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width(), image.height());
                     inputOptions.setMipmapData(image.pixels(), image.width(), image.height());
-                }a
+                }
             }
 
         }
