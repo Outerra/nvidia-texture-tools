@@ -36,6 +36,7 @@
 #include <nvcore/StdStream.h>
 #include <nvcore/FileSystem.h>
 #include <nvcore/Timer.h>
+#include <nvcore/Utils.h>
 
 #include <nvmath/Color.h>
 
@@ -156,10 +157,10 @@ void toNvImage(const nvtt::Surface& from, nv::Image& to)
     for (int j = 0; j < h; ++j) {
         for (int i = 0; i < w; ++i) {
             int idx = i + j * w;
-            data[idx].r = uint8(r[idx] * 255.f + 0.5);
-            data[idx].g = uint8(g[idx] * 255.f + 0.5);
-            data[idx].b = uint8(b[idx] * 255.f + 0.5);
-            data[idx].a = uint8(a[idx] * 255.f + 0.5);
+            data[idx].r = uint8(nv::clamp(r[idx], 0.f, 1.f) * 255.f + 0.5);
+            data[idx].g = uint8(nv::clamp(g[idx], 0.f, 1.f) * 255.f + 0.5);
+            data[idx].b = uint8(nv::clamp(b[idx], 0.f, 1.f) * 255.f + 0.5);
+            data[idx].a = uint8(nv::clamp(a[idx], 0.f, 1.f) * 255.f + 0.5);
         }
     }
     to.acquire(data, w, h);
@@ -733,13 +734,20 @@ int main(int argc, char *argv[])
                     const float cov = fimage.alphaTestCoverage(scaleCoverage, scaleCoverageChannel);
 
                     inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width(), image.height());
-                    nv::Image img;
-                    toNvImage(fimage, img);
-                    inputOptions.setMipmapData(img.pixels(), img.width(), img.height());
+                    nv::Image img_0;
+                    toNvImage(fimage, img_0);
+                    inputOptions.setMipmapData(img_0.pixels(), img_0.width(), img_0.height());
                     
                     int mip = 1;
-                    while (fimage.buildNextMipmap(nvtt::MipmapFilter_Kaiser)) {
-                        fimage.scaleAlphaToCoverage(cov, scaleCoverage, scaleCoverageChannel);
+                    while (fimage.buildNextMipmap(nvtt::MipmapFilter_Box)) {
+                        nvtt::Surface mip_img;
+                        mip_img.setImage(fimage.width(), fimage.height(), 1);
+                        mip_img.copy(fimage, 0, 0, 0, fimage.width(), fimage.height(), 1, 0, 0, 0);
+                        const float cov_mip_before = mip_img.alphaTestCoverage(scaleCoverage, scaleCoverageChannel);
+                        mip_img.scaleAlphaToCoverage(cov, scaleCoverage, scaleCoverageChannel);
+                        const float cov_mip = mip_img.alphaTestCoverage(scaleCoverage, scaleCoverageChannel);
+                        nv::Image img;
+                        toNvImage(mip_img, img);
                         inputOptions.setMipmapData(img.pixels(), img.width(), img.height(), 1, 0, mip);
                         ++mip;
                     }
