@@ -1381,14 +1381,14 @@ float FloatImage::alphaTestCoverage(float alphaRef, int alphaChannel, float alph
     const uint w = m_width;
     const uint h = m_height;
 
-    float coverage = 0.0f;
+    uint coverage = 0;
 
 #if 0
     const float * alpha = channel(alphaChannel);
 
     const uint count = m_pixelCount;
     for (uint i = 0; i < count; i++) {
-        if (alpha[i] > alphaRef) coverage += 1.0f; // @@ gt or lt?
+        if (alpha[i] > alphaRef) +coverage; // @@ gt or lt?
     }
     
     return coverage / float(w * h);
@@ -1409,7 +1409,7 @@ float FloatImage::alphaTestCoverage(float alphaRef, int alphaChannel, float alph
                 for (uint sx = 0; sx < n; sx++) {
                     float fx = (sx + 0.5f) / n;
                     float alpha = alpha00 * (1 - fx) * (1 - fy) + alpha10 * fx * (1 - fy) + alpha01 * (1 - fx) * fy + alpha11 * fx * fy;
-                    if (alpha > alphaRef) coverage += 1.0f;
+                    if (alpha > alphaRef) ++coverage;
                 }
             }
         }
