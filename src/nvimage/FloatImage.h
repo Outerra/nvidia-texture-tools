@@ -106,6 +106,7 @@ namespace nv
 
         NVIMAGE_API float alphaTestCoverage(float alphaRef, int alphaChannel, float alphaScale = 1.0f) const;
         NVIMAGE_API void scaleAlphaToCoverage(float coverage, float alphaRef, int alphaChannel);
+        NVIMAGE_API void roughnessMipFromNormal(const FloatImage& normal);
 
 
         uint width() const { return m_width; }

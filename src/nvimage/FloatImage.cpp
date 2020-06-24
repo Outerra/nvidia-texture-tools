@@ -1419,6 +1419,71 @@ float FloatImage::alphaTestCoverage(float alphaRef, int alphaChannel, float alph
 #endif
 }
 
+void FloatImage::roughnessMipFromNormal(const FloatImage& normal)
+{
+    // this could be done faster http://download.nvidia.com/developer/Papers/2005/NP2_Mipmapping/NP2_Mipmap_Creation.pdf
+    // but it's rarely used so who cares
+    const float* normal_x = normal.channel(0);
+    const float* normal_y = normal.channel(1);
+    const float* normal_z = normal.channel(2);
+    float* roughness_channels[4] = {};
+    
+    for (int c = 0; c < m_componentCount; ++c) {
+        roughness_channels[c] = channel(c);
+    }
+
+    for (int j = 0; j < m_height; ++j) {
+        for (int i = 0; i < m_width; ++i) {
+            
+            float nx = float(i) / m_width * normal.m_width;
+            float ny = float(j) / m_height * normal.m_height;
+            float nx2 = float(i + 1) / m_width * normal.m_width;
+            float ny2 = float(j + 1) / m_height * normal.m_height;
+
+            float sumw = normal.m_width / float(m_width) * normal.m_height / m_height;
+            float avg_N[3] = {};
+            for (int nj = int(ny); nj <= int(ny2); ++nj) {
+                for (int ni = int(nx); ni <= int(nx2); ++ni) {
+                    const float overlapw = min(float(ni + 1), nx2) - max(float(ni), nx);
+                    const float overlaph = min(float(nj + 1), ny2) - max(float(nj), ny);
+                    float w = overlapw * overlaph;
+                    if (ni >= normal.m_width) continue;
+                    if (nj >= normal.m_height) continue;
+                    const int idx = ni + nj * normal.m_width;
+                    avg_N[0] += (normal_x[idx] * 2 - 1) * w;
+                    avg_N[1] += (normal_y[idx] * 2 - 1) * w;
+                    avg_N[2] += (normal_z[idx] * 2 - 1) * w;
+                }
+            }
+            avg_N[0] /= sumw;
+            avg_N[1] /= sumw;
+            avg_N[2] /= sumw;
+
+            float r = 0;
+            for (int nj = int(ny); nj <= int(ny2); ++nj) {
+                for (int ni = int(nx); ni <= int(nx2); ++ni) {
+                    const float overlapw = min(float(ni + 1), nx2) - max(float(ni), nx);
+                    const float overlaph = min(float(nj + 1), ny2) - max(float(nj), ny);
+                    float w = overlapw * overlaph;
+                    if (ni >= normal.m_width) continue;
+                    if (nj >= normal.m_height) continue;
+                    const int idx = ni + nj * normal.m_width;
+                    const float dot = avg_N[0] * (normal_x[idx] * 2 - 1) 
+                        + avg_N[1] * (normal_y[idx] * 2 - 1) 
+                        + avg_N[2] * (normal_z[idx] * 2 - 1);
+                    r += (1 - dot) * (1 - dot) * w;
+                }
+            }
+            r /= sumw;
+
+            for (int c = 0; c < m_componentCount; ++c) {
+                const int idx = i + j * m_width;
+                roughness_channels[c][idx] += r * (1 - roughness_channels[c][idx]);
+            }
+        }
+    }
+}
+
 void FloatImage::scaleAlphaToCoverage(float desiredCoverage, float alphaRef, int alphaChannel)
 {
 #if 0

@@ -202,7 +202,7 @@ int main(int argc, char *argv[])
 
     nv::Path input;
     nv::Path output;
-
+    nv::Path input_normal;
 
     // Parse arguments.
     for (int i = 1; i < argc; i++)
@@ -249,6 +249,13 @@ int main(int argc, char *argv[])
         else if (strcmp("-premula", argv[i]) == 0)
         {
             premultiplyAlpha = true;
+        }
+        else if (strcmp("-normal_to_roughness", argv[i]) == 0)
+        {
+            if (i+1 == argc) break;
+            i++;
+
+            input_normal = argv[i];
         }
         else if (strcmp("-coverage", argv[i]) == 0)
         {
@@ -728,7 +735,30 @@ int main(int argc, char *argv[])
                     output.appendFormat(".%04i.dds", ytr);
                 }
 
-                if (scaleCoverage > 0) {
+                if (!input_normal.isNull()) {
+                    nvtt::Surface fimage;
+                    fimage.setImage(nvtt::InputFormat_BGRA_8UB, image.width(), image.height(), 1, image.pixels());
+                    
+                    nvtt::Surface normal;
+                    if (!normal.load(input_normal.str())) {
+                        fprintf(stderr, "The file '%s' is not a supported image type.\n", input_normal.str());
+                        return 1;
+                    }
+                    inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width(), image.height());
+                    nv::Image img_0;
+                    toNvImage(fimage, img_0);
+                    inputOptions.setMipmapData(img_0.pixels(), img_0.width(), img_0.height());
+                    
+                    int mip = 1;
+                    while (fimage.buildNextMipmap(nvtt::MipmapFilter_Box)) {
+                        fimage.roughnessMipFromNormal(normal);
+                        nv::Image img;
+                        toNvImage(fimage, img);
+                        inputOptions.setMipmapData(img.pixels(), img.width(), img.height(), 1, 0, mip);
+                        ++mip;
+                    }
+                }
+                else if (scaleCoverage > 0) {
                     nvtt::Surface fimage;
                     fimage.setImage(nvtt::InputFormat_BGRA_8UB, image.width(), image.height(), 1, image.pixels());
                     const float cov = fimage.alphaTestCoverage(scaleCoverage, scaleCoverageChannel);

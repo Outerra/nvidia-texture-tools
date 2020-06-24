@@ -1751,6 +1751,12 @@ void Surface::fill(float red, float green, float blue, float alpha)
     for (uint i = 0; i < count; i++) a[i] = alpha;
 }
 
+void Surface::roughnessMipFromNormal(const nvtt::Surface& normal)
+{
+    if (isNull()) return;
+    
+    m->image->roughnessMipFromNormal(*normal.m->image);
+}
 
 void Surface::scaleAlphaToCoverage(float coverage, float alphaRef/*= 0.5f*/, int alpha_channel/*= 3*/)
 {
