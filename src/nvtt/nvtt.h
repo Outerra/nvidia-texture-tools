@@ -49,7 +49,7 @@
 #  define NVTT_API
 #endif
 
-#define NVTT_VERSION 20100
+#define NVTT_VERSION 20102
 
 #define NVTT_FORBID_COPY(Class) \
     private: \
@@ -464,8 +464,8 @@ namespace nvtt
         ToneMapper_Lightmap,
     };
 
-    // Transform the given x,y coordinates.
-    typedef void WarpFunction(float & x, float & y, float & d);
+    // Transform the given x,y,z coordinates.
+    typedef void WarpFunction(float & x, float & y, float & z);
 
 
     // A surface is one level of a 2D or 3D texture. (New in NVTT 2.1)
@@ -530,7 +530,9 @@ namespace nvtt
         NVTT_API void toLinear(int channel, float gamma);
         NVTT_API void toGamma(int channel, float gamma);
         NVTT_API void toSrgb();
+        NVTT_API void toSrgbFast();
         NVTT_API void toLinearFromSrgb();
+        NVTT_API void toLinearFromSrgbFast();
         NVTT_API void toXenonSrgb();
         NVTT_API void transform(const float w0[4], const float w1[4], const float w2[4], const float w3[4], const float offset[4]);
         NVTT_API void swizzle(int r, int g, int b, int a);
@@ -665,6 +667,9 @@ namespace nvtt
 
         NVTT_API CubeSurface fastResample(int size, EdgeFixup fixupMethod) const;
 
+        // Spherical Harmonics:
+        NVTT_API void computeLuminanceIrradianceSH3(float sh[9]) const;
+        NVTT_API void computeIrradianceSH3(int channel, float sh[9]) const;
 
         /*
         NVTT_API void resize(int w, int h, ResizeFilter filter);

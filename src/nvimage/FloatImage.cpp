@@ -56,9 +56,9 @@ void FloatImage::initFrom(const Image * img)
     nvCheck(img != NULL);
 
     uint channel_count = 3;
-    if (img->format() == Image::Format_ARGB) channel_count = 4;
+    if (img->format == Image::Format_ARGB) channel_count = 4;
 
-    allocate(channel_count, img->width(), img->height(), img->depth());
+    allocate(channel_count, img->width, img->height, img->depth);
 
     float * red_channel = channel(0);
     float * green_channel = channel(1);
@@ -209,12 +209,12 @@ void FloatImage::normalize(uint baseComponent)
     const uint count = m_pixelCount;
     for (uint i = 0; i < count; i++) {
 
-        Vector3 normal(2*xChannel[i]-1, 2*yChannel[i]-1, 2*zChannel[i]-1);
+        Vector3 normal(xChannel[i], yChannel[i], zChannel[i]);
         normal = normalizeSafe(normal, Vector3(0), 0.0f);
 
-        xChannel[i] = 0.5f * (normal.x + 1);
-        yChannel[i] = 0.5f * (normal.y + 1);
-        zChannel[i] = 0.5f * (normal.z + 1);
+        xChannel[i] = normal.x;
+        yChannel[i] = normal.y;
+        zChannel[i] = normal.z;
     }
 }
 
@@ -265,7 +265,7 @@ void FloatImage::toLinear(uint baseComponent, uint num, float gamma /*= 2.2f*/)
             powf_11_5(ptr, ptr, m_pixelCount);
         }
     } else {
-    exponentiate(baseComponent, num, gamma);
+        exponentiate(baseComponent, num, gamma);
     }
 }
 
@@ -279,7 +279,7 @@ void FloatImage::toGamma(uint baseComponent, uint num, float gamma /*= 2.2f*/)
             powf_5_11(ptr, ptr, m_pixelCount);
         }
     } else {
-    exponentiate(baseComponent, num, 1.0f/gamma);
+        exponentiate(baseComponent, num, 1.0f/gamma);
     }
 }
 
@@ -800,9 +800,9 @@ FloatImage * FloatImage::resize(const Filter & filter, uint w, uint h, WrapMode 
                         dst_plane[y * w + x] = tmp_column[y];
                     }*/
                 }//);
-                    }
-                }
             }
+        }
+    }
 
     return dst_image.release();
 }
@@ -1381,19 +1381,19 @@ float FloatImage::alphaTestCoverage(float alphaRef, int alphaChannel, float alph
     const uint w = m_width;
     const uint h = m_height;
 
-    uint coverage = 0;
+    float coverage = 0.0f;
 
 #if 0
     const float * alpha = channel(alphaChannel);
 
     const uint count = m_pixelCount;
     for (uint i = 0; i < count; i++) {
-        if (alpha[i] > alphaRef) +coverage; // @@ gt or lt?
+        if (alpha[i] > alphaRef) coverage += 1.0f; // @@ gt or lt?
     }
     
     return coverage / float(w * h);
 #else
-    const uint n = 8;
+    const uint n = 4;
 
     // If we want subsampling:
     for (uint y = 0; y < h-1; y++) {
@@ -1404,18 +1404,20 @@ float FloatImage::alphaTestCoverage(float alphaRef, int alphaChannel, float alph
             float alpha01 = nv::saturate(pixel(alphaChannel, x+0, y+1, 0) * alphaScale);
             float alpha11 = nv::saturate(pixel(alphaChannel, x+1, y+1, 0) * alphaScale);
 
+            float texel_coverage = 0.0f;
             for (uint sy = 0; sy < n; sy++) {
                 float fy = (sy + 0.5f) / n;
                 for (uint sx = 0; sx < n; sx++) {
                     float fx = (sx + 0.5f) / n;
                     float alpha = alpha00 * (1 - fx) * (1 - fy) + alpha10 * fx * (1 - fy) + alpha01 * (1 - fx) * fy + alpha11 * fx * fy;
-                    if (alpha > alphaRef) ++coverage;
+                    if (alpha > alphaRef) texel_coverage += 1.0f;
                 }
             }
+            coverage += texel_coverage / (n * n);
         }
     }
 
-    return coverage / float(w * h * n * n);
+    return coverage / float((w - 1) * (h - 1));
 #endif
 }
 

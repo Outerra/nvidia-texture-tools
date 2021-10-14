@@ -1,33 +1,18 @@
 // This code is in the public domain -- castanyo@yahoo.es
 
 #pragma once
-#ifndef NV_MATH_H
-#define NV_MATH_H
 
 #include "nvcore/nvcore.h"
 #include "nvcore/Debug.h"   // nvDebugCheck
 #include "nvcore/Utils.h"   // max, clamp
 
+// Both cmath and math for C++11 and C function definitions.
+#include <cmath>
 #include <math.h>
 
 #if NV_OS_WIN32 || NV_OS_XBOX
 #include <float.h>  // finite, isnan
 #endif
-
-
-// Function linkage
-#if NVMATH_SHARED
-#ifdef NVMATH_EXPORTS
-#define NVMATH_API DLL_EXPORT
-#define NVMATH_CLASS DLL_EXPORT_CLASS
-#else
-#define NVMATH_API DLL_IMPORT
-#define NVMATH_CLASS DLL_IMPORT
-#endif
-#else // NVMATH_SHARED
-#define NVMATH_API
-#define NVMATH_CLASS
-#endif // NVMATH_SHARED
 
 // Set some reasonable defaults.
 #ifndef NV_USE_ALTIVEC
@@ -51,10 +36,6 @@
         // Otherwise we assume no SSE.
 #       define NV_USE_SSE 0
 #   endif
-#endif
-
-#if NV_USE_SSE
-    #include <xmmintrin.h>
 #endif
 
 // Internally set NV_USE_SIMD when either altivec or sse is available.
@@ -102,7 +83,7 @@ inline float sqrtf_assert(const float f)
     return sqrtf(f);
 }
 
-extern "C" inline double acos_assert(const double f) 
+extern "C" inline double acos_assert(const double f)
 {
     nvDebugCheck(f >= -1.0f && f <= 1.0f);
     return acos(f);
@@ -183,12 +164,12 @@ namespace nv
 
     inline bool isNan(const float f)
     {
-#if NV_OS_WIN32 || NV_OS_XBOX
+#if __cplusplus >= 199711L
+       return std::isnan(f);
+#elif NV_OS_WIN32 || NV_OS_XBOX
         return _isnan(f) != 0;
-#elif NV_OS_DARWIN || NV_OS_FREEBSD || NV_OS_NETBSD || NV_OS_OPENBSD || NV_OS_ORBIS
+#elif NV_OS_DARWIN || NV_OS_FREEBSD || NV_OS_NETBSD || NV_OS_OPENBSD || NV_OS_ORBIS || NV_OS_LINUX
         return isnan(f);
-#elif NV_OS_LINUX
-        return isnanf(f);
 #else
 #   error "isNan not supported"
 #endif
@@ -222,7 +203,7 @@ namespace nv
 
     inline float frac(float f)
     {
-        return f - floor(f);
+        return f - floorf(f);
     }
 
     inline float floatRound(float f)
@@ -250,7 +231,7 @@ namespace nv
     }
 
     inline float smoothstep(float edge0, float edge1, float x) {
-        x = linearstep(edge0, edge1, x); 
+        x = linearstep(edge0, edge1, x);
 
         // Evaluate polynomial
         return x*x*(3 - 2*x);
@@ -331,5 +312,3 @@ namespace nv
 
 
 } // nv
-
-#endif // NV_MATH_H

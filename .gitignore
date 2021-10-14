@@ -12,3 +12,6 @@
 *.opensdf
 *.sdf
 *.suo
+build
+.vs
+project/nvtt.sublime-workspace

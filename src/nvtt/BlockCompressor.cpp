@@ -206,15 +206,19 @@ void FloatColorCompressor::compress(AlphaMode alphaMode, uint w, uint h, uint d,
 
 
 // BC1
-#include "CompressorDXT1.h"
+#include "icbc.h"
 
-void FastCompressorDXT1::compressBlock(Vector4 colors[16], float weights[16], const CompressionOptions::Private & compressionOptions, void * output)
-{
-    compress_dxt1_fast(colors, weights, compressionOptions.colorWeight.xyz(), (BlockDXT1 *)output);
+inline icbc::Quality qualityLevel(const CompressionOptions::Private & compressionOptions) {
+    if (compressionOptions.quality == Quality_Fastest) 
+        return icbc::Quality_Fast;
+    else if (compressionOptions.quality == Quality_Production) 
+        return icbc::Quality_Max;
+    return icbc::Quality_Default;
 }
+
 void CompressorDXT1::compressBlock(Vector4 colors[16], float weights[16], const CompressionOptions::Private & compressionOptions, void * output)
 {
-    compress_dxt1(colors, weights, compressionOptions.colorWeight.xyz(), /*three_color_mode*/true, (BlockDXT1 *)output);
+    icbc::compress_dxt1(qualityLevel(compressionOptions), (float*)colors, weights, compressionOptions.colorWeight.component, /*three_color_mode*/true, /*three_color_black*/true, output);
 }
 
 
@@ -274,145 +278,6 @@ void CompressorETC2_RGBM::compressBlock(Vector4 colors[16], float weights[16], c
 
 
 // External compressors.
-
-#if defined(HAVE_ATITC)
-
-typedef int BOOL;
-typedef _W64 unsigned long ULONG_PTR;
-typedef ULONG_PTR DWORD_PTR;
-#include "atitc/ATI_Compress.h"
-
-void AtiCompressorDXT1::compress(InputFormat inputFormat, AlphaMode alphaMode, uint w, uint h, uint d, void * data, const CompressionOptions::Private & compressionOptions, const OutputOptions::Private & outputOptions)
-{
-    nvDebugCheck(d == 1);
-
-    // Init source texture
-    ATI_TC_Texture srcTexture;
-    srcTexture.dwSize = sizeof(srcTexture);
-    srcTexture.dwWidth = w;
-    srcTexture.dwHeight = h;
-    if (inputFormat == InputFormat_BGRA_8UB)
-    {
-        srcTexture.dwPitch = w * 4;
-        srcTexture.format = ATI_TC_FORMAT_ARGB_8888;
-    }
-    else
-    {
-        // @@ Floating point input is not swizzled.
-        srcTexture.dwPitch = w * 16;
-        srcTexture.format = ATI_TC_FORMAT_ARGB_32F;
-    }
-    srcTexture.dwDataSize = ATI_TC_CalculateBufferSize(&srcTexture);
-    srcTexture.pData = (ATI_TC_BYTE*) data;
-
-    // Init dest texture
-    ATI_TC_Texture destTexture;
-    destTexture.dwSize = sizeof(destTexture);
-    destTexture.dwWidth = w;
-    destTexture.dwHeight = h;
-    destTexture.dwPitch = 0;
-    destTexture.format = ATI_TC_FORMAT_DXT1;
-    destTexture.dwDataSize = ATI_TC_CalculateBufferSize(&destTexture);
-    destTexture.pData = (ATI_TC_BYTE*) mem::malloc(destTexture.dwDataSize);
-
-    ATI_TC_CompressOptions options;
-    options.dwSize = sizeof(options);
-    options.bUseChannelWeighting = false;
-    options.bUseAdaptiveWeighting = false;
-    options.bDXT1UseAlpha = false;
-    options.nCompressionSpeed = ATI_TC_Speed_Normal;
-    options.bDisableMultiThreading = false;
-    //options.bDisableMultiThreading = true;
-
-    // Compress
-    ATI_TC_ConvertTexture(&srcTexture, &destTexture, &options, NULL, NULL, NULL);
-
-    if (outputOptions.outputHandler != NULL) {
-            outputOptions.outputHandler->writeData(destTexture.pData, destTexture.dwDataSize);
-    }
-
-    mem::free(destTexture.pData);
-}
-
-void AtiCompressorDXT5::compress(InputFormat inputFormat, AlphaMode alphaMode, uint w, uint h, uint d, void * data, const CompressionOptions::Private & compressionOptions, const OutputOptions::Private & outputOptions)
-{
-    nvDebugCheck(d == 1);
-
-    // Init source texture
-    ATI_TC_Texture srcTexture;
-    srcTexture.dwSize = sizeof(srcTexture);
-    srcTexture.dwWidth = w;
-    srcTexture.dwHeight = h;
-    if (inputFormat == InputFormat_BGRA_8UB)
-    {
-        srcTexture.dwPitch = w * 4;
-        srcTexture.format = ATI_TC_FORMAT_ARGB_8888;
-    }
-    else
-    {
-        srcTexture.dwPitch = w * 16;
-        srcTexture.format = ATI_TC_FORMAT_ARGB_32F;
-    }
-    srcTexture.dwDataSize = ATI_TC_CalculateBufferSize(&srcTexture);
-    srcTexture.pData = (ATI_TC_BYTE*) data;
-
-    // Init dest texture
-    ATI_TC_Texture destTexture;
-    destTexture.dwSize = sizeof(destTexture);
-    destTexture.dwWidth = w;
-    destTexture.dwHeight = h;
-    destTexture.dwPitch = 0;
-    destTexture.format = ATI_TC_FORMAT_DXT5;
-    destTexture.dwDataSize = ATI_TC_CalculateBufferSize(&destTexture);
-    destTexture.pData = (ATI_TC_BYTE*) mem::malloc(destTexture.dwDataSize);
-
-    // Compress
-    ATI_TC_ConvertTexture(&srcTexture, &destTexture, NULL, NULL, NULL, NULL);
-
-    if (outputOptions.outputHandler != NULL) {
-        outputOptions.outputHandler->writeData(destTexture.pData, destTexture.dwDataSize);
-    }
-
-    mem::free(destTexture.pData);
-}
-
-#endif // defined(HAVE_ATITC)
-
-#if defined(HAVE_SQUISH)
-
-//#include "squish/squish.h"
-#include "squish-1.10/squish.h"
-
-void SquishCompressorDXT1::compress(InputFormat inputFormat, AlphaMode alphaMode, uint w, uint h, uint d, void * data, const CompressionOptions::Private & compressionOptions, const OutputOptions::Private & outputOptions)
-{
-    nvDebugCheck(d == 1);
-    nvDebugCheck(false);
-
-#pragma message(NV_FILE_LINE "TODO: Convert input to fixed point ABGR format instead of ARGB")
-    /*
-    Image img(*image);
-    int count = img.width() * img.height();
-    for (int i = 0; i < count; i++)
-    {
-            Color32 c = img.pixel(i);
-            img.pixel(i) = Color32(c.b, c.g, c.r, c.a);
-    }
-
-    int size = squish::GetStorageRequirements(img.width(), img.height(), squish::kDxt1);
-    void * blocks = mem::malloc(size);
-
-    squish::CompressImage((const squish::u8 *)img.pixels(), img.width(), img.height(), blocks, squish::kDxt1 | squish::kColourClusterFit);
-
-    if (outputOptions.outputHandler != NULL) {
-            outputOptions.outputHandler->writeData(blocks, size);
-    }
-
-    mem::free(blocks);
-    */
-}
-
-#endif // defined(HAVE_SQUISH)
-
 
 #if defined(HAVE_D3DX)
 
@@ -568,7 +433,7 @@ void EtcLibCompressor::compress(AlphaMode alphaMode, uint w, uint h, uint d, con
 #if defined(HAVE_RGETC)
 #include "rg_etc1.h"
 
-NV_AT_STARTUP(rg_etc1::pack_etc1_block_init());
+NV_AT_STARTUP(rg_etc1::pack_etc1_block_init()); // @@ Do this in context init.
 
 void RgEtcCompressor::compressBlock(ColorBlock & rgba, AlphaMode alphaMode, const CompressionOptions::Private & compressionOptions, void * output)
 {
@@ -590,6 +455,60 @@ void RgEtcCompressor::compressBlock(ColorBlock & rgba, AlphaMode alphaMode, cons
 
 #endif
 
+#if defined(HAVE_ETCPACK)
+
+void EtcPackCompressor::compress(nvtt::AlphaMode alphaMode, uint w, uint h, uint d, const float * data, nvtt::TaskDispatcher * dispatcher, const nvtt::CompressionOptions::Private & compressionOptions, const nvtt::OutputOptions::Private & outputOptions) 
+{
+    uint8 *imgdec = (uint8 *)malloc(expandedwidth*expandedheight * 3);
+
+    uint32 block1, block2;
+
+    if (compressionOptions.quality == Quality_Fastest) {
+        compressBlockDiffFlipFast(img, imgdec, expandedwidth, expandedheight, 4 * x, 4 * y, block1, block2);
+    }
+    else {
+        compressBlockETC1Exhaustive(img, imgdec, expandedwidth, expandedheight, 4 * x, 4 * y, block1, block2);
+    }
+}
+
+#endif
+
+#if defined(HAVE_ETCINTEL)
+#include "kernel_ispc.h"
+
+void EtcIntelCompressor::compress(nvtt::AlphaMode alphaMode, uint w, uint h, uint d, const float * data, nvtt::TaskDispatcher * dispatcher, const nvtt::CompressionOptions::Private & compressionOptions, const nvtt::OutputOptions::Private & outputOptions)
+{
+    nvCheck(d == 1);
+
+    // Allocate and convert input.
+    nv::Array<uint8> src;
+    const uint count = w * h;
+    src.resize(4 * count);
+
+    for (uint i = 0; i < count; i++) {
+        src[4 * i + 0] = data[count * 0 + i]; // @@ Scale by 256?
+        src[4 * i + 1] = data[count * 1 + i];
+        src[4 * i + 2] = data[count * 2 + i];
+        src[4 * i + 3] = data[count * 3 + i];
+    }
+
+    int bw = (w + 3) / 4;
+    int bw = (w + 3) / 4;
+
+    // Allocate output.
+    nv::Array<uint8> dst;
+    dst.resize(bw * bh * 4);
+
+    ispc::rgba_surface surface;
+    surface.ptr = src.buffer();
+    surface.width = w;
+    surface.height = h;
+    surface.stride = w * 4;
+
+    ispc::CompressBlocksBC1_ispc(&surface, dst)
+}
+
+#endif
 
 #if defined(HAVE_PVRTEXTOOL)
 
@@ -603,7 +522,7 @@ void CompressorPVR::compress(AlphaMode alphaMode, uint w, uint h, uint d, const 
 
     //pvrtexture::PixelType src_pixel_type = pvrtexture::PixelType('b','g','r','a',8,8,8,8);
     pvrtexture::PixelType src_pixel_type = pvrtexture::PixelType('r','g','b',0,8,8,8,0);
-    pvrtexture::CPVRTextureHeader header(src_pixel_type.PixelTypeID, w, h, d, 1/*num mips*/, 1/*num array*/, 1/*num faces*/, color_space, ePVRTVarTypeUnsignedByteNorm);
+    pvrtexture::CPVRTextureHeader header(src_pixel_type.PixelTypeID, h, w, d, 1/*num mips*/, 1/*num array*/, 1/*num faces*/, color_space, ePVRTVarTypeUnsignedByteNorm);
 
     /*
     uint count = w * h * d;

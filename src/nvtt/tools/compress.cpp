@@ -527,8 +527,9 @@ int main(int argc, char *argv[])
     if (format == nvtt::Format_Unknown && nv::strCaseDiff(input.extension(), ".dds") == 0)
     {
         // Load surface.
-        nv::DirectDrawSurface dds(input.str());
-        if (!dds.isValid())
+        nv::DirectDrawSurface dds;
+
+        if (!dds.load(input.str()))
         {
             fprintf(stderr, "The file '%s' is not a valid DDS file.\n", input.str());
             return EXIT_FAILURE;
@@ -541,14 +542,14 @@ int main(int argc, char *argv[])
         }
 
         //if format not specified, get from dds
-        if (dds.isRGB())
+        if (dds.isColorsRGB())
             format = nvtt::Format_RGB;
-        else if (dds.isLuminance()) {
+        else if (dds.isColorsLuminance()) {
             luminance = true;
             format = nvtt::Format_RGB;
         }
         else {
-            uint cc = dds.fourcc();
+            uint cc = dds.header.fourcc;
             switch(cc) {
             case nv::FOURCC_DXT1:   format = nvtt::Format_DXT1; break;
             case nv::FOURCC_DXT3:   format = nvtt::Format_DXT3; break;
@@ -626,8 +627,8 @@ int main(int argc, char *argv[])
         if (nv::strCaseDiff(input.extension(), ".dds") == 0)
         {
             // Load surface.
-            nv::DirectDrawSurface dds(input.str());
-            if (!dds.isValid())
+            nv::DirectDrawSurface dds;
+            if (!dds.load(input.str()) || !dds.isValid())
             {
                 fprintf(stderr, "The file '%s' is not a valid DDS file.\n", input.str());
                 return EXIT_FAILURE;
@@ -670,9 +671,8 @@ int main(int argc, char *argv[])
             {
                 for (uint m = 0; m < mipmapCount; m++)
                 {
-                    dds.mipmap(&mipmap, f, m); // @@ Load as float.
-
-                    inputOptions.setMipmapData(mipmap.pixels(), mipmap.width(), mipmap.height(), mipmap.depth(), f, m);
+                    if (imageFromDDS(&mipmap, dds, f, m)) // @@ Load as float.
+                        inputOptions.setMipmapData(mipmap.pixels(), mipmap.width, mipmap.height, mipmap.depth, f, m);
                 }
             }
         }
@@ -714,11 +714,11 @@ int main(int argc, char *argv[])
                 if(countEmptyRows)
                 {
                     //count empty rows & append to the file name
-                    const int w = image.width();
-                    const int h = image.height();
+                    const int w = image.width;
+                    const int h = image.height;
                     int ytr = 0;   //height of the transparent part
 
-                    if(image.format() == image.Format_ARGB) {
+                    if(image.format == image.Format_ARGB) {
                         for(int y=0; y<h; ++y) {
                             for(int x=0; x<w; ++x) {
                                 if(image.pixel(x,y).a >= 128) {
@@ -737,36 +737,36 @@ int main(int argc, char *argv[])
 
                 if (!input_normal.isNull()) {
                     nvtt::Surface fimage;
-                    fimage.setImage(nvtt::InputFormat_BGRA_8UB, image.width(), image.height(), 1, image.pixels());
+                    fimage.setImage(nvtt::InputFormat_BGRA_8UB, image.width, image.height, 1, image.pixels());
                     
                     nvtt::Surface normal;
                     if (!normal.load(input_normal.str())) {
                         fprintf(stderr, "The file '%s' is not a supported image type.\n", input_normal.str());
                         return 1;
                     }
-                    inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width(), image.height());
+                    inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width, image.height);
                     nv::Image img_0;
                     toNvImage(fimage, img_0);
-                    inputOptions.setMipmapData(img_0.pixels(), img_0.width(), img_0.height());
+                    inputOptions.setMipmapData(img_0.pixels(), img_0.width, img_0.height);
                     
                     int mip = 1;
                     while (fimage.buildNextMipmap(nvtt::MipmapFilter_Box)) {
                         fimage.roughnessMipFromNormal(normal);
                         nv::Image img;
                         toNvImage(fimage, img);
-                        inputOptions.setMipmapData(img.pixels(), img.width(), img.height(), 1, 0, mip);
+                        inputOptions.setMipmapData(img.pixels(), img.width, img.height, 1, 0, mip);
                         ++mip;
                     }
                 }
                 else if (scaleCoverage > 0) {
                     nvtt::Surface fimage;
-                    fimage.setImage(nvtt::InputFormat_BGRA_8UB, image.width(), image.height(), 1, image.pixels());
+                    fimage.setImage(nvtt::InputFormat_BGRA_8UB, image.width, image.height, 1, image.pixels());
                     const float cov = fimage.alphaTestCoverage(scaleCoverage, scaleCoverageChannel);
 
-                    inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width(), image.height());
+                    inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width, image.height);
                     nv::Image img_0;
                     toNvImage(fimage, img_0);
-                    inputOptions.setMipmapData(img_0.pixels(), img_0.width(), img_0.height());
+                    inputOptions.setMipmapData(img_0.pixels(), img_0.width, img_0.height);
                     
                     int mip = 1;
                     while (fimage.buildNextMipmap(nvtt::MipmapFilter_Box)) {
@@ -778,7 +778,7 @@ int main(int argc, char *argv[])
                         const float cov_mip = mip_img.alphaTestCoverage(scaleCoverage, scaleCoverageChannel);
                         nv::Image img;
                         toNvImage(mip_img, img);
-                        inputOptions.setMipmapData(img.pixels(), img.width(), img.height(), 1, 0, mip);
+                        inputOptions.setMipmapData(img.pixels(), img.width, img.height, 1, 0, mip);
                         ++mip;
                     }
                 }
@@ -786,10 +786,10 @@ int main(int argc, char *argv[])
                     nv::FloatImage fimage(&image);
 
                     // create feature mask
-                    nv::BitMap bmp(image.width(),image.height());
+                    nv::BitMap bmp(image.width,image.height);
                     bmp.clearAll();
-                    const int w=image.width();
-                    const int h=image.height();
+                    const int w=image.width;
+                    const int h=image.height;
                     int ytr = h;   //height of the transparent part
                     for(int y=0; y<h; ++y)
                         for(int x=0; x<w; ++x) 
@@ -808,12 +808,12 @@ int main(int argc, char *argv[])
 
                     nv::AutoPtr<nv::Image> img(fimage.createImage(0));
 
-                    inputOptions.setTextureLayout(nvtt::TextureType_2D, img->width(), img->height());
-                    inputOptions.setMipmapData(img->pixels(), img->width(), img->height());
+                    inputOptions.setTextureLayout(nvtt::TextureType_2D, img->width, img->height);
+                    inputOptions.setMipmapData(img->pixels(), img->width, img->height);
                 }
                 else {
-                    inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width(), image.height());
-                    inputOptions.setMipmapData(image.pixels(), image.width(), image.height());
+                    inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width, image.height);
+                    inputOptions.setMipmapData(image.pixels(), image.width, image.height);
                 }
             }
 

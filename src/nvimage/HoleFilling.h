@@ -84,12 +84,12 @@ namespace nv
 		
 	};
 
-	NVIMAGE_API void fillVoronoi(FloatImage * img, const BitMap * bmap);
-	NVIMAGE_API void fillBlur(FloatImage * img, const BitMap * bmap);
-	NVIMAGE_API void fillPullPush(FloatImage * img, const BitMap * bmap);
+	void fillVoronoi(FloatImage * img, const BitMap * bmap);
+	void fillBlur(FloatImage * img, const BitMap * bmap);
+	void fillPullPush(FloatImage * img, const BitMap * bmap);
 	
-	NVIMAGE_API void fillExtrapolate(int passCount, FloatImage * img, BitMap * bmap);
-	NVIMAGE_API void fillQuadraticExtrapolate(int passCount, FloatImage * img, BitMap * bmap, int coverageIndex = -1);
+	void fillExtrapolate(int passCount, FloatImage * img, BitMap * bmap);
+	void fillQuadraticExtrapolate(int passCount, FloatImage * img, BitMap * bmap, int coverageIndex = -1);
 	
 } // nv namespace
 
