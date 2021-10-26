@@ -2823,6 +2823,16 @@ void Surface::normalizeNormalMap()
     nv::normalizeNormalMap(m->image);
 }
 
+void Surface::renormalizeNormalMap()
+{
+    if (isNull()) return;
+    if (!m->isNormalMap) return;
+
+    detach();
+
+    nv::renormalizeNormalMap(m->image);
+}
+
 void Surface::transformNormals(NormalTransform xform)
 {
     if (isNull()) return;

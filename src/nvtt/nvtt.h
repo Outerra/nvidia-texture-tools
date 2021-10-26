@@ -573,6 +573,7 @@ namespace nvtt
         // Normal map transforms.
         NVTT_API void toNormalMap(float sm, float medium, float big, float large);
         NVTT_API void normalizeNormalMap();
+        NVTT_API void renormalizeNormalMap();
         NVTT_API void transformNormals(NormalTransform xform);
         NVTT_API void reconstructNormals(NormalTransform xform);
         NVTT_API void toCleanNormalMap();

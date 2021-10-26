@@ -50,6 +50,9 @@ namespace nv
 	FloatImage * createNormalMap(const FloatImage * img, FloatImage::WrapMode wm, Vector4::Arg filterWeights);
 
 	void normalizeNormalMap(FloatImage * img);
+	
+	// fix blue from rg
+	void renormalizeNormalMap(FloatImage* img);
 
 	// @@ Add generation of DU/DV maps.
 

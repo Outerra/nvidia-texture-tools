@@ -277,6 +277,11 @@ bool Compressor::Private::compress(const InputOptions::Private & inputOptions, c
                 img.toLinear(inputOptions.inputGamma);
             }
 
+            // renormalize blue channel to avoid quantization artifacts in mipmaps
+            if (img.isNormalMap() && inputOptions.normalizeMipmaps) {
+                img.renormalizeNormalMap();
+            }
+
             // Resize input.
             img.resize(w, h, d, ResizeFilter_Box);
 

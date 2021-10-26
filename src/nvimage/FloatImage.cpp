@@ -218,6 +218,22 @@ void FloatImage::normalize(uint baseComponent)
     }
 }
 
+void FloatImage::renormalize(uint baseComponent)
+{
+    nvCheck(baseComponent + 3 <= m_componentCount);
+
+    float* xChannel = this->channel(baseComponent + 0);
+    float* yChannel = this->channel(baseComponent + 1);
+    float* zChannel = this->channel(baseComponent + 2);
+
+    const uint count = m_pixelCount;
+    for (uint i = 0; i < count; i++) {
+        float blue2 = 1 - xChannel[i] * xChannel[i] - yChannel[i] * yChannel[i];
+        float blue = blue2 > 0 ? sqrt(blue2) : 0.0f;
+        zChannel[i] = zChannel[i] < 0 ? -blue : blue;
+    }
+}
+
 void FloatImage::packNormals(uint baseComponent)
 {
     scaleBias(baseComponent, 3, 0.5f, 0.5f);

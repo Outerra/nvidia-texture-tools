@@ -206,3 +206,11 @@ void nv::normalizeNormalMap(FloatImage * img)
     img->normalize(0);
 }
 
+/// Fix blue channel in place.
+void nv::renormalizeNormalMap(FloatImage* img)
+{
+    nvDebugCheck(img != NULL);
+
+    img->renormalize(0);
+}
+

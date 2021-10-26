@@ -60,6 +60,7 @@ namespace nv
         void copyChannel(uint src, uint dst);
 
         void normalize(uint base_component);
+        void renormalize(uint base_component);
 
         void packNormals(uint base_component);
         void expandNormals(uint base_component);
