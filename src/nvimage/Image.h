@@ -36,6 +36,9 @@ namespace nv
 
         void resize(uint w, uint h, uint d = 1);
 
+        bool copyChannel(const Image* img, uint8 src, uint8 dst);
+        void clearChannel(uint8 ch, uint8 v = 0);
+
         void wrap(void * data, uint w, uint h, uint d = 1);
         void unwrap();
 

@@ -58,6 +58,7 @@ namespace nv
         void clear(float f = 0.0f);
         void clear(uint component, float f = 0.0f);
         void copyChannel(uint src, uint dst);
+        void copyChannel(const FloatImage* img, uint src, uint dst);
 
         void normalize(uint base_component);
         void renormalize(uint base_component);

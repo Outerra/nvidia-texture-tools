@@ -1823,8 +1823,50 @@ static FloatImage * loadFloatSTB(Stream & s)
 
 
 
+Image* nv::ImageIO::load(const char * fileName)
+{
+    nvDebugCheck(fileName != NULL);
 
-Image * nv::ImageIO::load(const char * fileName)
+    const char sep = '+';
+    const char* offnext = strchr(fileName, sep);
+
+    if (offnext) {
+        //multichannel names
+
+        *(char*)offnext = 0;
+        AutoPtr<Image> img = loadSingle(fileName);
+        *(char*)offnext = sep;
+
+        if (!img.ptr())
+            return 0;
+
+        for (int ch = 1; ch < 4; ++ch)
+        {
+            if (!offnext)
+                img->clearChannel(ch, 0);
+            else
+            {
+                const char* nextName = offnext + 1;
+                offnext = strchr(nextName, sep);
+
+                if (offnext) *(char*)offnext = 0;
+                AutoPtr<Image> aux = loadSingle(nextName);
+                if (offnext) *(char*)offnext = sep;
+
+                if (!aux.ptr())
+                    return 0;
+
+                img->copyChannel(aux.ptr(), 0, ch);
+            }
+        }
+
+        return img.release();
+    }
+
+    return loadSingle(fileName);
+}
+
+Image * nv::ImageIO::loadSingle(const char * fileName)
 {
     nvDebugCheck(fileName != NULL);
 
@@ -1937,6 +1979,50 @@ FloatImage * nv::ImageIO::loadFloat(const char * fileName)
 {
     nvDebugCheck(fileName != NULL);
 
+    const char sep = '+';
+    const char* offnext = strchr(fileName, sep);
+
+    if (offnext) {
+        //multichannel names
+
+        *(char*)offnext = 0;
+        AutoPtr<FloatImage> img = loadSingleFloat(fileName);
+        *(char*)offnext = sep;
+
+        if (!img.ptr())
+            return 0;
+
+        img->resizeChannelCount(4);
+
+        for (int ch = 1; ch < 4; ++ch)
+        {
+            if (!offnext)
+                img->clear(ch, 0.0f);
+            else
+            {
+                const char* nextName = offnext + 1;
+                offnext = strchr(nextName, sep);
+
+                if (offnext) *(char*)offnext = 0;
+                AutoPtr<FloatImage> aux = loadSingleFloat(nextName);
+                if (offnext) *(char*)offnext = sep;
+
+                if (!aux.ptr())
+                    return 0;
+
+                img->copyChannel(aux.ptr(), 0, ch);
+            }
+        }
+
+        return img.release();
+    }
+
+    return loadSingleFloat(fileName);
+}
+
+
+FloatImage* nv::ImageIO::loadSingleFloat(const char* fileName)
+{
     StdInputStream stream(fileName);
 
     if (stream.isError()) {

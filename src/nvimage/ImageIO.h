@@ -12,9 +12,11 @@ namespace nv
     namespace ImageIO
     {
         Image * load(const char * fileName);
+        Image * loadSingle(const char * fileName);
         Image * load(const char * fileName, Stream & s);
 
         FloatImage * loadFloat(const char * fileName);
+        FloatImage * loadSingleFloat(const char * fileName);
         FloatImage * loadFloat(const char * fileName, Stream & s);
 
         bool save(const char * fileName, const Image * img, const char ** tags=NULL); // NULL terminated list.

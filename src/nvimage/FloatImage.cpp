@@ -198,6 +198,20 @@ void FloatImage::copyChannel(uint src, uint dst)
     memcpy(dstChannel, srcChannel, sizeof(float)*m_pixelCount);
 }
 
+void FloatImage::copyChannel(const FloatImage* img, uint src, uint dst)
+{
+    nvCheck(src < m_componentCount);
+    nvCheck(dst < m_componentCount);
+    nvCheck(img->width() == width());
+    nvCheck(img->height() == height());
+    nvCheck(img->pixelCount() == pixelCount());
+
+    const float* srcChannel = img->channel(src);
+    float* dstChannel = this->channel(dst);
+
+    memcpy(dstChannel, srcChannel, sizeof(float)*m_pixelCount);
+}
+
 void FloatImage::normalize(uint baseComponent)
 {
     nvCheck(baseComponent + 3 <= m_componentCount);

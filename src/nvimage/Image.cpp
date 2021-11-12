@@ -100,6 +100,29 @@ void Image::resize(uint w, uint h, uint d/*= 1*/) {
     swap(data, img.data);
 }
 
+bool Image::copyChannel(const Image* img, uint8 src, uint8 dst)
+{
+    if (img->width != width || img->height != height || img->depth != depth)
+        return false;
+
+    const uint size = width * height * depth;
+    for (uint i = 0; i < size; ++i)
+    {
+        data[i].component[dst] = img->data[i].component[src];
+    }
+
+    return true;
+}
+
+void nv::Image::clearChannel(uint8 ch, uint8 v)
+{
+    const uint size = width * height * depth;
+    for (uint i = 0; i < size; ++i)
+    {
+        data[i].component[ch] = v;
+    }
+}
+
 bool Image::load(const char * name)
 {
     free();
