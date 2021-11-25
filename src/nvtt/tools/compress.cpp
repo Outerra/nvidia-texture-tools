@@ -96,29 +96,66 @@ struct MyOutputHandler : public nvtt::OutputHandler
 
 struct ZstdOutputHandler : public MyOutputHandler
 {
-    ZstdOutputHandler(const char* name) : MyOutputHandler(name), bufsize(0), buffer(0) {}
+    ZstdOutputHandler(const char* name) : MyOutputHandler(name) {}
     virtual ~ZstdOutputHandler() {
         if (buffer)
             free(buffer);
+        if (cstream)
+            ZSTD_freeCStream(cstream);
     }
 
     // Output data.
-    virtual bool writeData(const void* data, int size)
+    virtual bool writeData(const void* src, int size)
     {
-        size_t dmax = ZSTD_compressBound(size);
-        if (dmax > bufsize) {
-            bufsize = dmax;
+        if (!cstream) {
+            cstream = ZSTD_createCStream();
+            size_t res = ZSTD_initCStream(cstream, 17);
+            if (ZSTD_isError(res))
+                return false;
+
+            bufsize = ZSTD_CStreamInSize();
             buffer = realloc(buffer, bufsize);
         }
 
-        size_t ls = ZSTD_compress(buffer, bufsize, data, size, 17);
-        if (ZSTD_isError(ls))
-            return false;
+        ZSTD_outBuffer zout;
+        zout.pos = offset;
+        zout.size = bufsize;
+        zout.dst = buffer;
 
-        nvDebugCheck(stream != NULL);
-        stream->serialize(buffer, ls);
+        //if src is null, flush
+        if (src == 0) {
+            while (ZSTD_endStream(cstream, &zout) > 0) {
+                stream->serialize(zout.dst, zout.pos);
+                zout.pos = 0;
+            }
 
-        progress += size;
+            if (zout.pos > 0)
+                stream->serialize(zout.dst, zout.pos);
+            offset = 0;
+
+            return true;
+        }
+
+        ZSTD_inBuffer zin;
+        zin.src = src;
+        zin.size = size;
+        zin.pos = 0;
+
+        do {
+            size_t res = ZSTD_compressStream(cstream, &zout, &zin);
+            if (ZSTD_isError(res))
+                return false;
+
+            if (zout.pos >= zout.size) {
+                stream->serialize(zout.dst, zout.pos);
+                zout.pos = 0;
+            }
+        }
+        while (zin.size > zin.pos);
+
+        offset = zout.pos;
+
+        /*progress += size;
         int p = int((100 * progress) / total);
         if (verbose && p != percentage)
         {
@@ -127,13 +164,15 @@ struct ZstdOutputHandler : public MyOutputHandler
             percentage = p;
             printf("\r%d%%", percentage);
             fflush(stdout);
-        }
+        }*/
 
         return true;
     }
 
-    unsigned int bufsize;
-    void* buffer;
+    ZSTD_CStream* cstream = 0;
+    unsigned int offset = 0;
+    unsigned int bufsize = 0;
+    void* buffer = 0;
 };
 
 
