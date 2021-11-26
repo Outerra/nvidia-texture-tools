@@ -218,7 +218,8 @@ inline icbc::Quality qualityLevel(const CompressionOptions::Private & compressio
 
 void CompressorDXT1::compressBlock(Vector4 colors[16], float weights[16], const CompressionOptions::Private & compressionOptions, void * output)
 {
-    icbc::compress_dxt1(qualityLevel(compressionOptions), (float*)colors, weights, compressionOptions.colorWeight.component, /*three_color_mode*/true, /*three_color_black*/true, output);
+    bool allowTransparentBlack = !compressionOptions.binaryAlpha;
+    icbc::compress_dxt1(qualityLevel(compressionOptions), (float*)colors, weights, compressionOptions.colorWeight.component, allowTransparentBlack, allowTransparentBlack, output);
 }
 
 

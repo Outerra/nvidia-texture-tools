@@ -266,7 +266,7 @@ int main(int argc, char *argv[])
     bool nocuda = false;
     bool bc1n = false;
     bool luminance = false;
-    nvtt::Format format = nvtt::Format_BC1;
+    nvtt::Format format = nvtt::Format_Unknown;
     bool fillHoles = false;
     bool outProvided = false;
     bool premultiplyAlpha = false;
@@ -500,7 +500,7 @@ int main(int argc, char *argv[])
 
             if (i+1 < argc && argv[i+1][0] != '-') {
                 output = argv[i+1];
-                if(output.endsWith("\\") || output.endsWith("/")) {
+                if (output.endsWith("\\") || output.endsWith("/")) {
                     //only path specified
                     output.append(input.fileName());
 				    output.stripExtension();
@@ -533,6 +533,11 @@ int main(int argc, char *argv[])
 		{
 			printf("Warning: unrecognized option \"%s\"\n", argv[i]);
 		}
+    }
+
+    if (zstd && !output.endsWith(".zds")) {
+        output.stripExtension();
+        output.append(".zds");
     }
 
     const uint version = nvtt::version();
@@ -856,7 +861,7 @@ int main(int argc, char *argv[])
 
 
         if (format == nvtt::Format_Unknown)
-            format = nvtt::Format_BC1;
+            format = alpha ? nvtt::Format_BC1a : nvtt::Format_BC1;
 
 
         if (wrapRepeat)
@@ -993,6 +998,8 @@ int main(int argc, char *argv[])
     }
 
 
+
+
     MyErrorHandler errorHandler;
     MyOutputHandler* outputHandler = 0;
     
@@ -1084,6 +1091,9 @@ int main(int argc, char *argv[])
             return EXIT_FAILURE;
         }
     }
+
+    //flush
+    outputHandler->writeData(0, 0);
 
     timer.stop();
 
