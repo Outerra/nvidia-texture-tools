@@ -1842,8 +1842,10 @@ Image* nv::ImageIO::load(const char * fileName)
 
         for (int ch = 1; ch < 4; ++ch)
         {
+            int bgra_ch = ch < 3 ? 2 - ch : ch;
+
             if (!offnext)
-                img->clearChannel(ch, 0);
+                img->clearChannel(bgra_ch, 0);
             else
             {
                 const char* nextName = offnext + 1;
@@ -1856,7 +1858,7 @@ Image* nv::ImageIO::load(const char * fileName)
                 if (!aux.ptr())
                     return 0;
 
-                img->copyChannel(aux.ptr(), 0, ch);
+                img->copyChannel(aux.ptr(), 0, bgra_ch);
             }
         }
 
