@@ -41,6 +41,7 @@
 #include <nvmath/Color.h>
 
 #include <zstd/zstd.h>
+#include <cctype>
 
 struct MyOutputHandler : public nvtt::OutputHandler
 {
@@ -125,12 +126,12 @@ struct ZstdOutputHandler : public MyOutputHandler
         //if src is null, flush
         if (src == 0) {
             while (ZSTD_endStream(cstream, &zout) > 0) {
-                stream->serialize(zout.dst, zout.pos);
+                stream->serialize(zout.dst, (uint)zout.pos);
                 zout.pos = 0;
             }
 
             if (zout.pos > 0)
-                stream->serialize(zout.dst, zout.pos);
+                stream->serialize(zout.dst, (uint)zout.pos);
             offset = 0;
 
             return true;
@@ -147,7 +148,7 @@ struct ZstdOutputHandler : public MyOutputHandler
                 return false;
 
             if (zout.pos >= zout.size) {
-                stream->serialize(zout.dst, zout.pos);
+                stream->serialize(zout.dst, (uint)zout.pos);
                 zout.pos = 0;
             }
         }
@@ -170,8 +171,8 @@ struct ZstdOutputHandler : public MyOutputHandler
     }
 
     ZSTD_CStream* cstream = 0;
-    unsigned int offset = 0;
-    unsigned int bufsize = 0;
+    size_t offset = 0;
+    size_t bufsize = 0;
     void* buffer = 0;
 };
 
@@ -270,8 +271,8 @@ int main(int argc, char *argv[])
     bool fillHoles = false;
     bool outProvided = false;
     bool premultiplyAlpha = false;
-    float scaleCoverage = -1;
-    int scaleCoverageChannel = 3;
+    float scaleCoverage[4] = {-1, -1, -1, -1};
+    bool scaleCoverageChannels[4] = {false, false, false, false};
     nvtt::MipmapFilter mipmapFilter = nvtt::MipmapFilter_Box;
     bool rgbm = false;
     bool rangescale = false;
@@ -283,6 +284,7 @@ int main(int argc, char *argv[])
     bool dds10 = false;
     bool ktx = false;
     bool zstd = false;
+    bool argerror = false;
 
     nv::Path input;
     nv::Path output;
@@ -339,15 +341,36 @@ int main(int argc, char *argv[])
         }
         else if (strcmp("-coverage", argv[i]) == 0)
         {
-            if (i+1 == argc) break;
-            i++;
+            for (int k = 0; k<4; ++k) {
+                if (i+1 == argc || !isdigit(argv[i+1][0])) break;
+                i++;
 
-            sscanf(argv[i], "%f", &scaleCoverage);
+                char* end;
+                float coverage = strtof(argv[i], &end);
 
-            if (i+1 == argc) break;
-            i++;
+                if (*end != 0) {
+                    printf("Unrecognized characters: %s\n", end);
+                    argerror = true;
+                    break;
+                }
 
-            sscanf(argv[i], "%d", &scaleCoverageChannel);
+                if (i+1 == argc) {
+                    printf("Expecting channel number after the coverage value\n");
+                    argerror = true;
+                    break;
+                }
+                i++;
+
+                unsigned int ch = strtoul(argv[i], &end, 10);
+                if (*end != 0 || ch > 3) {
+                    printf("Invalid channel number: %s\n", argv[i]);
+                    argerror = true;
+                    break;
+                }
+
+                scaleCoverage[ch] = coverage;
+                scaleCoverageChannels[ch] = true;
+            }
         }
         else if (strcmp("-mipfilter", argv[i]) == 0)
         {
@@ -357,6 +380,10 @@ int main(int argc, char *argv[])
             if (strcmp("box", argv[i]) == 0) mipmapFilter = nvtt::MipmapFilter_Box;
             else if (strcmp("triangle", argv[i]) == 0) mipmapFilter = nvtt::MipmapFilter_Triangle;
             else if (strcmp("kaiser", argv[i]) == 0) mipmapFilter = nvtt::MipmapFilter_Kaiser;
+            else {
+                printf("Unrecognized filter: %s", argv[i]);
+                argerror = true;
+            }
         }
         else if (strcmp("-rgbm", argv[i]) == 0)
         {
@@ -532,7 +559,13 @@ int main(int argc, char *argv[])
 		else
 		{
 			printf("Warning: unrecognized option \"%s\"\n", argv[i]);
+            argerror = true;
 		}
+    }
+
+    if (argerror) {
+        printf("Invalid arguments\n");
+        return EXIT_FAILURE;
     }
 
     if (zstd && !output.endsWith(".zds")) {
@@ -565,7 +598,7 @@ int main(int argc, char *argv[])
         printf("  -repeat       Repeat wrapping mode.\n");
         printf("  -nomips       Disable mipmap generation.\n");
         printf("  -coverage     coverage value in range <0; 1>, mipmaps will have the same coverage.\n");
-        printf("                second parameter is number of channel to use\n");
+        printf("                second parameter is number of channel to use. Multiple pairs of coverage and channel id can be specified.\n");
         printf("  -premula      Premultiply alpha into color channel.\n");
         printf("  -mipfilter    Mipmap filter. One of the following: box, triangle, kaiser.\n");
         printf("  -rgbm         Transform input to RGBM.\n");
@@ -800,24 +833,33 @@ int main(int argc, char *argv[])
                     ++mip;
                 }
             }
-            else if (scaleCoverage > 0) {
+            else if (scaleCoverageChannels[0] || scaleCoverageChannels[1] || scaleCoverageChannels[2] || scaleCoverageChannels[3]) {
                 nvtt::Surface fimage;
-                fimage.setImage(nvtt::InputFormat_BGRA_8UB, image.width, image.height, 1, image.pixels());
-                const float cov = fimage.alphaTestCoverage(scaleCoverage, scaleCoverageChannel);
 
+                fimage.setImage(nvtt::InputFormat_BGRA_8UB, image.width, image.height, 1, image.pixels());
                 inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width, image.height);
+
                 nv::Image img_0;
                 toNvImage(fimage, img_0);
                 inputOptions.setMipmapData(img_0.pixels(), img_0.width, img_0.height);
+
+                float coverage0[4] = {0,};
+                for (int k = 0; k < 4; ++k) {
+                    if (scaleCoverageChannels[k])
+                        coverage0[k] = fimage.alphaTestCoverage(scaleCoverage[k], k);
+                }
 
                 int mip = 1;
                 while (fimage.buildNextMipmap(nvtt::MipmapFilter_Box)) {
                     nvtt::Surface mip_img;
                     mip_img.setImage(fimage.width(), fimage.height(), 1);
                     mip_img.copy(fimage, 0, 0, 0, fimage.width(), fimage.height(), 1, 0, 0, 0);
-                    const float cov_mip_before = mip_img.alphaTestCoverage(scaleCoverage, scaleCoverageChannel);
-                    mip_img.scaleAlphaToCoverage(cov, scaleCoverage, scaleCoverageChannel);
-                    const float cov_mip = mip_img.alphaTestCoverage(scaleCoverage, scaleCoverageChannel);
+
+                    for (int k = 0; k < 4; ++k) {
+                        if (scaleCoverageChannels[k])
+                            mip_img.scaleAlphaToCoverage(coverage0[k], scaleCoverage[k], k);
+                    }
+
                     nv::Image img;
                     toNvImage(mip_img, img);
                     inputOptions.setMipmapData(img.pixels(), img.width, img.height, 1, 0, mip);
