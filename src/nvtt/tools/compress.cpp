@@ -62,7 +62,8 @@ struct MyOutputHandler : public nvtt::OutputHandler
     virtual bool writeData(const void * data, int size)
     {
         nvDebugCheck(stream != NULL);
-        stream->serialize(const_cast<void *>(data), size);
+        if (data && size > 0)
+            stream->serialize(const_cast<void *>(data), size);
 
         progress += size;
         int p = int((100 * progress) / total);
@@ -189,6 +190,7 @@ struct MyErrorHandler : public nvtt::ErrorHandler
 };
 
 
+bool high_pass(nvtt::InputOptions* input, nv::Image* image, bool linear, bool to_yuv, int skip_mips);
 
 
 // Set color to normal map conversion options.
@@ -271,6 +273,9 @@ int main(int argc, char *argv[])
     bool fillHoles = false;
     bool outProvided = false;
     bool premultiplyAlpha = false;
+    bool highPassMips = false;
+    bool highPassYuv = false;
+    int highPassSkip = 0;
     float scaleCoverage[4] = {-1, -1, -1, -1};
     bool scaleCoverageChannels[4] = {false, false, false, false};
     nvtt::MipmapFilter mipmapFilter = nvtt::MipmapFilter_Box;
@@ -288,7 +293,7 @@ int main(int argc, char *argv[])
 
     nv::Path input;
     nv::Path output;
-    nv::Path input_normal;
+    nv::Path input_normal_for_roughness;
 
     // Parse arguments.
     for (int i = 1; i < argc; i++)
@@ -337,7 +342,25 @@ int main(int argc, char *argv[])
             if (i+1 == argc) break;
             i++;
 
-            input_normal = argv[i];
+            input_normal_for_roughness = argv[i];
+        }
+        else if (strcmp("-high_pass", argv[i]) == 0 || (highPassYuv = (strcmp("-high_pass_yuv", argv[i]) == 0)))
+        {
+            highPassMips = true;
+
+            if (i + 1 < argc && isdigit(argv[i + 1][0])) {
+                i++;
+                char* end;
+                int skip = strtol(argv[i], &end, 10);
+
+                if (*end != 0) {
+                    printf("Unrecognized characters: %s\n", end);
+                    argerror = true;
+                    break;
+                }
+
+                highPassSkip = skip;
+            }
         }
         else if (strcmp("-coverage", argv[i]) == 0)
         {
@@ -599,12 +622,14 @@ int main(int argc, char *argv[])
         printf("  -nomips       Disable mipmap generation.\n");
         printf("  -coverage     coverage value in range <0; 1>, mipmaps will have the same coverage.\n");
         printf("                second parameter is number of channel to use. Multiple pairs of coverage and channel id can be specified.\n");
+        printf("  -high_pass_yuv\n");
+        printf("  -high_pass    [optional mip offset]; apply high-pass mipmap filtering.\n");
         printf("  -premula      Premultiply alpha into color channel.\n");
         printf("  -mipfilter    Mipmap filter. One of the following: box, triangle, kaiser.\n");
         printf("  -rgbm         Transform input to RGBM.\n");
         printf("  -rangescale   Scale image to use entire color range.\n");
-        printf("  -fillholes    Fill transparent areas with nearby color. Note: adds transparent upper height into output file name in case the outfile was not specified, and infile was in form #.####.xxx.ext\n");
-        printf(" infile1+infile2[+infile3] combine multiple channels int one image, taking single channel from eachn");
+        printf("  -fillholes    Fill transparent areas with nearby color.\n");
+        printf(" infile1+infile2[+infile3] combine multiple channels into one image, taking the first channel from each.");
 
         printf("\nCompression options:\n");
         printf("  -fast         Fast compression.\n");
@@ -810,13 +835,21 @@ int main(int argc, char *argv[])
                 return 1;
             }
 
-            if (!input_normal.isNull()) {
+            if (highPassMips) {
+                inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width, image.height);
+
+                if (!high_pass(&inputOptions, &image, linear, highPassYuv, highPassSkip)) {
+                    fprintf(stderr, "Error applying high pass filter.\n");
+                    return 1;
+                }
+            }
+            else if (!input_normal_for_roughness.isNull()) {
                 nvtt::Surface fimage;
                 fimage.setImage(nvtt::InputFormat_BGRA_8UB, image.width, image.height, 1, image.pixels());
 
                 nvtt::Surface normal;
-                if (!normal.load(input_normal.str())) {
-                    fprintf(stderr, "The file '%s' is not a supported image type.\n", input_normal.str());
+                if (!normal.load(input_normal_for_roughness.str())) {
+                    fprintf(stderr, "The file '%s' is not a supported image type.\n", input_normal_for_roughness.str());
                     return 1;
                 }
                 inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width, image.height);

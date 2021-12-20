@@ -360,6 +360,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\src\nvtt\tools\compress.cpp" />
+    <ClCompile Include="..\..\..\src\nvtt\tools\highpass.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\src\nvtt\tools\cmdline.h" />
