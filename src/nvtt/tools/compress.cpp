@@ -964,7 +964,13 @@ int main(int argc, char *argv[])
             //inputOptions.setRoundMode(nvtt::RoundMode_ToPreviousPowerOfTwo);
         }*/
 
-        if (linear)
+        if (highPassMips) {
+            inputOptions.setNormalMap(true);
+            inputOptions.setConvertToNormalMap(false);
+            inputOptions.setGamma(1.0f, 1.0f);
+            inputOptions.setNormalizeMipmaps(false);
+        }
+        else if (linear)
         {
             setLinearMap(inputOptions);
         }

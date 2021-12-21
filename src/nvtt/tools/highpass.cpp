@@ -23,15 +23,12 @@ inline void rgb_to_ycocg(const float rgbin[], float yog[3])
 ////////////////////////////////////////////////////////////////////////////////
 struct HighPass
 {
-    bool decompose(const uint8_t* rgbx, uint len, uint nb, uint pitch, bool srgbin, bool tonormal, bool toyuv);
+    bool decompose(const uint8_t* rgbx, uint len, uint pitch, bool srgbin, bool tonorm, bool toyuv);
     void reconstruct(int unfiltered);
 
-    void get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool toyuv);
+    void get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool tonorm, bool toyuv);
 
 protected:
-
-    template<int NB>
-    void load_row(const uint8_t* rgbin, float* rgbout, uint len, bool srgb);
 
     void decompose_rows(const float* rgb1, const float* rgb2, uint len, float* sums, float* diff, uint8_t* gray);
     void compose_rows(float* rgb1, float* rgb2, uint len, const float* sums, const float* diff, float limdif);
@@ -59,15 +56,21 @@ protected:
 
 
 ////////////////////////////////////////////////////////////////////////////////
-template<int NB>
-void HighPass::load_row(const uint8_t* rgbin, float* rgbout, uint len, bool srgb)
+template<int NB, bool SRGB, bool NORM>
+static void load_row(const uint8_t* rgbin, float* rgbout, uint len)
 {
     len *= 4;
-    const float C = 1.0f / 255.f;
+    const float C = 1.0f / 255;
 
     for (uint i = 0; i < len; i += 4)
     {
-        if (srgb) {
+        if (NORM) {
+            const float CH = 1.0f / 127;
+            rgbout[i + 0] = float(*rgbin++ - 127) * CH;
+            rgbout[i + 1] = float(*rgbin++ - 127) * CH;
+            rgbout[i + 2] = float(*rgbin++ - 127) * CH;
+        }
+        else if (SRGB) {
             //gamma correction
             rgbout[i + 0] = powf(float(*rgbin++) * C, 2.2f);
             rgbout[i + 1] = powf(float(*rgbin++) * C, 2.2f);
@@ -193,29 +196,31 @@ inline uint int_low_pow2(uint x) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool HighPass::decompose(const uint8_t* rgbx, uint len, uint nb, uint pitch, bool srgbin, bool tonormal, bool toyuv)
+bool HighPass::decompose(const uint8_t* rgbx, uint len, uint pitch, bool srgbin, bool tonormal, bool toyuv)
 {
-    if (!(nb == 3 || nb == 4))
-        return false;           //3 or 4 component images only
     if ((len & (len - 1)) != 0)
         return false;           //not a power of two
 
     _levels = int_low_pow2(len);
     _width = len;
-    _nb = nb;
+    _nb = 4;
 
     if (pitch == 0)
-        pitch = nb * len;
+        pitch = _nb * len;
 
     _count = (4 * len * len * 4) / 3;
 
     _sums = (float*)malloc(_count * sizeof(float));
     float* ps = _sums;
 
+
+    void (*load_row_fn)(const uint8_t*, float*, uint) =
+        tonormal ? &load_row<4, false, true> :
+        srgbin ? &load_row<4, true, false> : &load_row<4, false, false>;
+
+
     for (uint i = 0; i < len; ++i, ps += 4 * len, rgbx += pitch) {
-        nb == 3
-            ? load_row<3>(rgbx, ps, len, srgbin)
-            : load_row<4>(rgbx, ps, len, srgbin);
+        load_row_fn(rgbx, ps, len);
     }
 
     pitch = 4 * len;
@@ -269,9 +274,9 @@ bool HighPass::decompose(const uint8_t* rgbx, uint len, uint nb, uint pitch, boo
     }
     else if (tonormal) {
         //normal maps: set avg
-        ps[0] = 1.0f;
-        ps[1] = 0.5f;
-        ps[2] = 0.5f;
+        ps[0] = 1;
+        ps[1] = 0;
+        ps[2] = 0;
     }
     else {
         //align the toplevel sum to 565
@@ -302,7 +307,7 @@ void HighPass::reconstruct_level(int level, int unfiltered)
 {
     const float* ps = _sums + _count - 1;
     const float* pd = _wavbuf + (4 * _width * _width - 4);
-
+    
     float* pr = _reconst + (_count - 1 - 4);
     pr[0] = ps[-4 + 0];
     pr[1] = ps[-4 + 1];
@@ -338,7 +343,7 @@ void HighPass::reconstruct_level(int level, int unfiltered)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void HighPass::get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool toyuv)
+void HighPass::get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool tonorm, bool toyuv)
 {
     const float* ps = _sums;
     uint8_t* pw = (uint8_t*)malloc(_count);
@@ -357,7 +362,14 @@ void HighPass::get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool toyuv
 
         for (uint k = 0; k < size; k += 4)
         {
-            if (tosrgb || toyuv) {
+            if (tonorm) {
+                float blue2 = 1 - (ps[1] * ps[1] + ps[2] * ps[2]);
+                float blue = blue2 > 0 ? sqrtf(blue2) : 0.0f;
+                fvec[0] = saturate((blue + 1) * (127 / 255.f));
+                fvec[1] = saturate((ps[1] + 1) * (127 / 255.f));
+                fvec[2] = saturate((ps[2] + 1) * (127 / 255.f));
+            }
+            else if (tosrgb || toyuv) {
                 fvec[0] = powf(saturate(ps[0]), 1 / 2.2f);
                 fvec[1] = powf(saturate(ps[1]), 1 / 2.2f);
                 fvec[2] = powf(saturate(ps[2]), 1 / 2.2f);
@@ -386,12 +398,12 @@ void HighPass::get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool toyuv
 bool high_pass(nvtt::InputOptions* input, nv::Image* image, bool linear, bool to_normal, bool to_yuv, int skip_mips)
 {
     HighPass hp;
-    if (!hp.decompose((const uint8_t*)image->pixels(), image->width, 4, 0, !linear, to_normal, to_yuv))
+    if (!hp.decompose((const uint8_t*)image->pixels(), image->width, 0, !linear, to_normal, to_yuv))
         return false;
 
     hp.reconstruct(skip_mips);// srgb ? nmipmaps - 10 : 0);
 
-    hp.get_image_mips(input, !linear, to_yuv);
+    hp.get_image_mips(input, !linear, to_normal, to_yuv);
 
     return true;
 }
