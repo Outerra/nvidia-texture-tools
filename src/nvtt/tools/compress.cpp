@@ -190,7 +190,7 @@ struct MyErrorHandler : public nvtt::ErrorHandler
 };
 
 
-bool high_pass(nvtt::InputOptions* input, nv::Image* image, bool linear, bool to_yuv, int skip_mips);
+bool high_pass(nvtt::InputOptions* input, nv::Image* image, bool linear, bool to_normal, bool to_yuv, int skip_mips);
 
 
 // Set color to normal map conversion options.
@@ -838,7 +838,7 @@ int main(int argc, char *argv[])
             if (highPassMips) {
                 inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width, image.height);
 
-                if (!high_pass(&inputOptions, &image, linear, highPassYuv, highPassSkip)) {
+                if (!high_pass(&inputOptions, &image, linear || normal, normal, highPassYuv, highPassSkip)) {
                     fprintf(stderr, "Error applying high pass filter.\n");
                     return 1;
                 }
