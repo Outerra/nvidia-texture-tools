@@ -23,7 +23,7 @@ inline void rgb_to_ycocg(const float rgbin[], float yog[3])
 ////////////////////////////////////////////////////////////////////////////////
 struct HighPass
 {
-    bool decompose(const uint8_t* rgbx, uint len, uint pitch, bool srgbin, bool tonorm, bool toyuv);
+    bool decompose(const uint8_t* rgbx, uint len, uint pitch, bool srgbin, bool tonorm, int toyuv);
     void reconstruct(int unfiltered);
 
     void get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool tonorm, bool toyuv);
@@ -196,7 +196,7 @@ inline uint int_low_pow2(uint x) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool HighPass::decompose(const uint8_t* rgbx, uint len, uint pitch, bool srgbin, bool tonormal, bool toyuv)
+bool HighPass::decompose(const uint8_t* rgbx, uint len, uint pitch, bool srgbin, bool tonormal, int toyuv)
 {
     if ((len & (len - 1)) != 0)
         return false;           //not a power of two
@@ -265,21 +265,21 @@ bool HighPass::decompose(const uint8_t* rgbx, uint len, uint pitch, bool srgbin,
 
     ps -= 4;
 
-    if (toyuv) {
+    if (tonormal) {
+        //normal maps: set avg, clear any bias
+        ps[0] = 1;
+        ps[1] = 0;
+        ps[2] = 0;
+    }
+    else if (toyuv < 0) {
         //diffuse delta texture
         // encode as YUV delta from the average color
         ps[0] = 0.5;
         ps[1] = 0.5;
         ps[2] = 0.5;
     }
-    else if (tonormal) {
-        //normal maps: set avg
-        ps[0] = 1;
-        ps[1] = 0;
-        ps[2] = 0;
-    }
     else {
-        //align the toplevel sum to 565
+        //align the toplevel sum
         uint r = uint(ps[0] * 255 + 0.5);
         uint g = uint(ps[1] * 255 + 0.5);
         uint b = uint(ps[2] * 255 + 0.5);
@@ -395,7 +395,7 @@ void HighPass::get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool tonor
 }
 
 
-bool high_pass(nvtt::InputOptions* input, nv::Image* image, bool linear, bool to_normal, bool to_yuv, int skip_mips)
+bool high_pass(nvtt::InputOptions* input, nv::Image* image, bool linear, bool to_normal, int to_yuv, int skip_mips)
 {
     HighPass hp;
     if (!hp.decompose((const uint8_t*)image->pixels(), image->width, 0, !linear, to_normal, to_yuv))

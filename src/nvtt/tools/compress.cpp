@@ -190,7 +190,7 @@ struct MyErrorHandler : public nvtt::ErrorHandler
 };
 
 
-bool high_pass(nvtt::InputOptions* input, nv::Image* image, bool linear, bool to_normal, bool to_yuv, int skip_mips);
+bool high_pass(nvtt::InputOptions* input, nv::Image* image, bool linear, bool to_normal, int to_yuv, int skip_mips);
 
 
 // Set color to normal map conversion options.
@@ -274,7 +274,8 @@ int main(int argc, char *argv[])
     bool outProvided = false;
     bool premultiplyAlpha = false;
     bool highPassMips = false;
-    bool highPassYuv = false;
+    bool highPassYUV = false;
+    bool highPassYUVNorm = false;
     int highPassSkip = 0;
     float scaleCoverage[4] = {-1, -1, -1, -1};
     bool scaleCoverageChannels[4] = {false, false, false, false};
@@ -344,7 +345,7 @@ int main(int argc, char *argv[])
 
             input_normal_for_roughness = argv[i];
         }
-        else if (strcmp("-high_pass", argv[i]) == 0 || (highPassYuv = (strcmp("-high_pass_yuv", argv[i]) == 0)))
+        else if (strcmp("-high_pass", argv[i]) == 0)
         {
             highPassMips = true;
 
@@ -361,6 +362,15 @@ int main(int argc, char *argv[])
 
                 highPassSkip = skip;
             }
+        }
+        else if (strcmp("-yuv", argv[i]) == 0) {
+            highPassYUV = true;
+            highPassYUVNorm = false;
+        }
+        else if (strcmp("-yuvn", argv[i]) == 0) {
+            
+            highPassYUV = true;
+            highPassYUVNorm = true;
         }
         else if (strcmp("-coverage", argv[i]) == 0)
         {
@@ -622,8 +632,8 @@ int main(int argc, char *argv[])
         printf("  -nomips       Disable mipmap generation.\n");
         printf("  -coverage     coverage value in range <0; 1>, mipmaps will have the same coverage.\n");
         printf("                second parameter is number of channel to use. Multiple pairs of coverage and channel id can be specified.\n");
-        printf("  -high_pass_yuv\n");
         printf("  -high_pass    [optional mip offset]; apply high-pass mipmap filtering.\n");
+        printf("  -yuv, -yuvn   highpass options: convert to YUV, convert to YUV normalized to gray.\n");
         printf("  -premula      Premultiply alpha into color channel.\n");
         printf("  -mipfilter    Mipmap filter. One of the following: box, triangle, kaiser.\n");
         printf("  -rgbm         Transform input to RGBM.\n");
@@ -838,7 +848,9 @@ int main(int argc, char *argv[])
             if (highPassMips) {
                 inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width, image.height);
 
-                if (!high_pass(&inputOptions, &image, linear || normal, normal, highPassYuv, highPassSkip)) {
+                int yuv = !highPassYUV ? 0 :
+                    highPassYUVNorm ? -1 : 1;
+                if (!high_pass(&inputOptions, &image, linear || normal, normal, yuv, highPassSkip)) {
                     fprintf(stderr, "Error applying high pass filter.\n");
                     return 1;
                 }
