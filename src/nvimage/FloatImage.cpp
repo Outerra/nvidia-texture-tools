@@ -1465,8 +1465,8 @@ void FloatImage::roughnessMipFromNormal(const FloatImage& normal)
     }
 
     for (int j = 0; j < m_height; ++j) {
-        for (int i = 0; i < m_width; ++i) {
-            
+        for (int i = 0; i < m_width; ++i)
+        {
             float nx = float(i) / m_width * normal.m_width;
             float ny = float(j) / m_height * normal.m_height;
             float nx2 = float(i + 1) / m_width * normal.m_width;

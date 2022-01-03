@@ -647,6 +647,9 @@ bool Compressor::Private::outputHeader(nvtt::TextureType textureType, int w, int
         header.setHeight(h);
         header.setMipmapCount(mipmapCount);
 
+        header.reserved[0] = NV_MAKEFOURCC('O', 'T', 'N', 'V');
+        header.reserved[1] = NV_MAKEFOURCC('-', 'D', 'D', 'S');
+
         bool supported = true;
 
         if (outputOptions.container == Container_DDS10)

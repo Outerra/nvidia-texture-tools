@@ -633,7 +633,7 @@ int main(int argc, char *argv[])
         printf("  -coverage     coverage value in range <0; 1>, mipmaps will have the same coverage.\n");
         printf("                second parameter is number of channel to use. Multiple pairs of coverage and channel id can be specified.\n");
         printf("  -high_pass    [optional mip offset]; apply high-pass mipmap filtering.\n");
-        printf("  -yuv, -yuvn   highpass options: convert to YUV, convert to YUV normalized to gray.\n");
+        printf("  -yuv, -yuvn   highpass options: convert to CoYCg, convert to CoYCg normalized to gray.\n");
         printf("  -premula      Premultiply alpha into color channel.\n");
         printf("  -mipfilter    Mipmap filter. One of the following: box, triangle, kaiser.\n");
         printf("  -rgbm         Transform input to RGBM.\n");

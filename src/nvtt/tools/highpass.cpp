@@ -7,17 +7,18 @@
 //#define YUV
 
 
-inline void rgb_to_ycocg(const float rgbin[], float yog[3])
+inline void bgr_to_coycg(const float rgbin[], float yog[3])
 {
-    float r = rgbin[0];
+    float r = rgbin[2];
     float g = rgbin[1];
-    float b = rgbin[2];
+    float b = rgbin[0];
     float Y = (r + 2 * g + b) * 0.25f;
-    float Co = (2 * r - 2 * b) * 0.25f + 0.5f;
-    float Cg = (-r + 2 * g - b) * 0.25f + 0.5f;
-    yog[0] = Y;
-    yog[1] = Co;
-    yog[2] = Cg;
+    float Co = (2 * r - 2 * b) * 0.25f;
+    float Cg = (-r + 2 * g - b) * 0.25f;
+    const float bias = 15.0f / 31;// 127.f / 255;
+    yog[2] = bias * (2*Co + 1);
+    yog[1] = Y;
+    yog[0] = bias * (2*Cg + 1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -375,7 +376,7 @@ void HighPass::get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool tonor
                 fvec[2] = powf(saturate(ps[2]), 1 / 2.2f);
 
                 if (toyuv)
-                    rgb_to_ycocg(fvec, fvec);
+                    bgr_to_coycg(fvec, fvec);
             }
             else {
                 fvec[0] = saturate(ps[0]);
