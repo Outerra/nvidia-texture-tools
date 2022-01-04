@@ -349,18 +349,23 @@ int main(int argc, char *argv[])
         {
             highPassMips = true;
 
-            if (i + 1 < argc && isdigit(argv[i + 1][0])) {
-                i++;
-                char* end;
-                int skip = strtol(argv[i], &end, 10);
+            if (i + 1 < argc) {
+                const char* arg1 = argv[i + 1];
 
-                if (*end != 0) {
-                    printf("Unrecognized characters: %s\n", end);
-                    argerror = true;
-                    break;
+                //read optional skip count
+                if (isdigit(arg1[0]) || ((arg1[0] == '-' || arg1[0] == '+') && isdigit(arg1[1]))) {
+                    i++;
+                    char* end;
+                    int skip = strtol(argv[i], &end, 10);
+
+                    if (*end != 0) {
+                        printf("Unrecognized characters: %s\n", end);
+                        argerror = true;
+                        break;
+                    }
+
+                    highPassSkip = skip;
                 }
-
-                highPassSkip = skip;
             }
         }
         else if (strcmp("-yuv", argv[i]) == 0) {
