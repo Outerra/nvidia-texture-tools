@@ -287,6 +287,7 @@ int main(int argc, char *argv[])
     const char * externalCompressor = NULL;
 
     bool silent = false;
+    bool ifmodified = false;
     bool dds10 = false;
     bool ktx = false;
     bool zstd = false;
@@ -542,6 +543,10 @@ int main(int argc, char *argv[])
         {
             silent = true;
         }
+        else if (strcmp("-ifmod", argv[i]) == 0)
+        {
+            ifmodified = true;
+        }
         else if (strcmp("-dds10", argv[i]) == 0)
         {
             dds10 = true;
@@ -611,6 +616,46 @@ int main(int argc, char *argv[])
         output.append(".zds");
     }
 
+    if (ifmodified && nv::FileSystem::exists(output.str())) {
+        //check if output isn't newer 
+        struct stat fsi, fso;
+        stat(output.str(), &fso);
+
+        bool failed = false;
+        time_t imtime = 0;
+        char* strend = input.str() + input.length();
+
+        //check possible multi-files
+        char* multi = strchr(input.str(), '+');
+        if (!multi)
+            multi = strend;
+
+        char ch;
+        do {
+            ch = *multi;
+            *multi = 0;
+            if (0 == stat(input.str(), &fsi)) {
+                if (fsi.st_mtime > imtime)
+                    imtime = fsi.st_mtime;
+            }
+            else
+                failed = true;
+
+            *multi = ch;
+
+            if (ch) {
+                char* next = strchr(multi + 1, '+');
+                multi = next ? next : strend;
+            }
+        }
+        while (ch == '+');
+
+        if (!failed && imtime < fso.st_mtime) {
+            printf("Input file(s) are older than the output file, skipping\n");
+            return EXIT_SUCCESS;
+        }
+    }
+
     const uint version = nvtt::version();
     const uint major = version / 100 / 100;
     const uint minor = (version / 100) % 100;
@@ -665,6 +710,7 @@ int main(int argc, char *argv[])
 
         printf("\nOutput options:\n");
         printf("  -silent  \tDo not output progress messages\n");
+        printf("  -ifmod   \tSkip if the output file is newer than the source\n");
         printf("  -dds10   \tUse DirectX 10 DDS format (enabled by default for BC6/7, unless ktx is being used)\n");
         printf("  -ktx     \tUse KTX container format\n");
         printf("  -zstd    \tApply Zstd compression, produces zds files instead of dds\n");
