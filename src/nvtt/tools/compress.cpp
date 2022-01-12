@@ -43,6 +43,8 @@
 #include <zstd/zstd.h>
 #include <cctype>
 
+#include <windows.h>
+
 struct MyOutputHandler : public nvtt::OutputHandler
 {
     MyOutputHandler(const char * name) : total(0), progress(0), percentage(0), stream(new nv::StdOutputStream(name)) {}
@@ -616,13 +618,14 @@ int main(int argc, char *argv[])
         output.append(".zds");
     }
 
+    time_t imtime = 0;
+
     if (ifmodified && nv::FileSystem::exists(output.str())) {
         //check if output isn't newer 
         struct stat fsi, fso;
         stat(output.str(), &fso);
 
         bool failed = false;
-        time_t imtime = 0;
         char* strend = input.str() + input.length();
 
         //check possible multi-files
@@ -1243,6 +1246,14 @@ int main(int argc, char *argv[])
 
     if (!silent) {
         printf("\rtime taken: %.3f seconds\n", timer.elapsed());
+    }
+
+    outputOptions.setOutputHandler(NULL);
+
+    //set time to match input
+    if (imtime > 0)
+    {
+        nv::FileSystem::setFileModTime(output.str(), imtime + 1);
     }
 
     return EXIT_SUCCESS;

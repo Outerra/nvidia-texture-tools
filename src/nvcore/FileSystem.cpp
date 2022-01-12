@@ -99,5 +99,22 @@ bool FileSystem::copyFile(const char * src, const char * dst) {
     return true;
 }
 
+bool nv::FileSystem::setFileModTime(const char* src, time_t imtime)
+{
+    FILETIME ftmod;
+    uint64 ftx = (imtime * 10000000ULL) + 116444736000000000;
+    ftmod.dwHighDateTime = uint32(ftx >> 32);
+    ftmod.dwLowDateTime = uint32(ftx);
+
+    HANDLE h = CreateFile(src, GENERIC_WRITE, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    if (h == INVALID_HANDLE_VALUE)
+        return false;
+
+    BOOL r = SetFileTime(h, NULL, NULL, &ftmod);
+
+    CloseHandle(h);
+
+    return r != 0;
+}
 
 
