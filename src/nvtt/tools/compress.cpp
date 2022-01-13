@@ -48,7 +48,9 @@
 struct MyOutputHandler : public nvtt::OutputHandler
 {
     MyOutputHandler(const char * name) : total(0), progress(0), percentage(0), stream(new nv::StdOutputStream(name)) {}
-    virtual ~MyOutputHandler() { delete stream; }
+    virtual ~MyOutputHandler() {
+        delete stream;
+    }
 
     virtual void beginImage(int size, int width, int height, int depth, int face, int miplevel)
     {
@@ -192,7 +194,7 @@ struct MyErrorHandler : public nvtt::ErrorHandler
 };
 
 
-bool high_pass(nvtt::InputOptions* input, nv::Image* image, bool linear, bool to_normal, int to_yuv, int skip_mips);
+bool high_pass(nvtt::InputOptions* input, nv::Image* image, bool linear, bool to_normal, bool to_yuv, int skip_mips);
 
 
 // Set color to normal map conversion options.
@@ -277,7 +279,6 @@ int main(int argc, char *argv[])
     bool premultiplyAlpha = false;
     bool highPassMips = false;
     bool highPassYUV = false;
-    bool highPassYUVNorm = false;
     int highPassSkip = 0;
     float scaleCoverage[4] = {-1, -1, -1, -1};
     bool scaleCoverageChannels[4] = {false, false, false, false};
@@ -373,12 +374,6 @@ int main(int argc, char *argv[])
         }
         else if (strcmp("-yuv", argv[i]) == 0) {
             highPassYUV = true;
-            highPassYUVNorm = false;
-        }
-        else if (strcmp("-yuvn", argv[i]) == 0) {
-            
-            highPassYUV = true;
-            highPassYUVNorm = true;
         }
         else if (strcmp("-coverage", argv[i]) == 0)
         {
@@ -620,10 +615,9 @@ int main(int argc, char *argv[])
 
     time_t imtime = 0;
 
-    if (ifmodified && nv::FileSystem::exists(output.str())) {
+    if (ifmodified) {
         //check if output isn't newer 
         struct stat fsi, fso;
-        stat(output.str(), &fso);
 
         bool failed = false;
         char* strend = input.str() + input.length();
@@ -653,7 +647,7 @@ int main(int argc, char *argv[])
         }
         while (ch == '+');
 
-        if (!failed && imtime < fso.st_mtime) {
+        if (!failed && stat(output.str(), &fso) == 0 && imtime < fso.st_mtime) {
             printf("Input file(s) are older than the output file, skipping\n");
             return EXIT_SUCCESS;
         }
@@ -686,7 +680,7 @@ int main(int argc, char *argv[])
         printf("  -coverage     coverage value in range <0; 1>, mipmaps will have the same coverage.\n");
         printf("                second parameter is number of channel to use. Multiple pairs of coverage and channel id can be specified.\n");
         printf("  -high_pass    [optional mip offset]; apply high-pass mipmap filtering.\n");
-        printf("  -yuv, -yuvn   highpass options: convert to CoYCg, convert to CoYCg normalized to gray.\n");
+        printf("  -yuv          highpass option, convert to CoYCg.\n");
         printf("  -premula      Premultiply alpha into color channel.\n");
         printf("  -mipfilter    Mipmap filter. One of the following: box, triangle, kaiser.\n");
         printf("  -rgbm         Transform input to RGBM.\n");
@@ -902,9 +896,7 @@ int main(int argc, char *argv[])
             if (highPassMips) {
                 inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width, image.height);
 
-                int yuv = !highPassYUV ? 0 :
-                    highPassYUVNorm ? -1 : 1;
-                if (!high_pass(&inputOptions, &image, linear || normal, normal, yuv, highPassSkip)) {
+                if (!high_pass(&inputOptions, &image, linear || normal, normal, highPassYUV, highPassSkip)) {
                     fprintf(stderr, "Error applying high pass filter.\n");
                     return 1;
                 }
@@ -1030,19 +1022,15 @@ int main(int argc, char *argv[])
             //inputOptions.setRoundMode(nvtt::RoundMode_ToPreviousPowerOfTwo);
         }*/
 
-        if (highPassMips) {
-            inputOptions.setNormalMap(true);
-            inputOptions.setConvertToNormalMap(false);
-            inputOptions.setGamma(1.0f, 1.0f);
-            inputOptions.setNormalizeMipmaps(false);
-        }
-        else if (linear)
+        if (linear)
         {
             setLinearMap(inputOptions);
         }
         else if (normal)
         {
             setNormalMap(inputOptions);
+            if (highPassMips)
+                inputOptions.setNormalizeMipmaps(false);
         }
         else if (color2normal)
         {
@@ -1249,11 +1237,14 @@ int main(int argc, char *argv[])
     }
 
     outputOptions.setOutputHandler(NULL);
+    delete(outputHandler);
 
     //set time to match input
     if (imtime > 0)
     {
-        nv::FileSystem::setFileModTime(output.str(), imtime + 1);
+        if (!nv::FileSystem::setFileModTime(output.str(), imtime + 1)) {
+            fprintf(stderr, "Error setting file modification time.\n");
+        }
     }
 
     return EXIT_SUCCESS;

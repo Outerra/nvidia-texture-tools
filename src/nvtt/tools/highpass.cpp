@@ -24,7 +24,7 @@ inline void bgr_to_coycg(const float rgbin[], float yog[3])
 ////////////////////////////////////////////////////////////////////////////////
 struct HighPass
 {
-    bool decompose(const uint8_t* rgbx, uint len, uint pitch, bool srgbin, bool tonorm, int toyuv);
+    bool decompose(const uint8_t* rgbx, uint len, uint pitch, bool srgbin, bool tonorm);
     void reconstruct(int unfiltered);
 
     void get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool tonorm, bool toyuv);
@@ -71,17 +71,41 @@ static void load_row(const uint8_t* rgbin, float* rgbout, uint len)
             rgbout[i + 1] = float(*rgbin++ - 127) * CH;
             rgbout[i + 2] = float(*rgbin++ - 127) * CH;
         }
-        else if (SRGB) {
-            //gamma correction
-            rgbout[i + 0] = powf(float(*rgbin++) * C, 2.2f);
-            rgbout[i + 1] = powf(float(*rgbin++) * C, 2.2f);
-            rgbout[i + 2] = powf(float(*rgbin++) * C, 2.2f);
-        }
         else {
-            rgbout[i + 0] = float(*rgbin++) * C;
-            rgbout[i + 1] = float(*rgbin++) * C;
-            rgbout[i + 2] = float(*rgbin++) * C;
+            float a = float(*rgbin++);
+            float b = float(*rgbin++);
+            float c = float(*rgbin++);
+
+#if 0
+            //round to BC1 resolution
+            a *= 31 / 255.0f;
+            b *= 63 / 255.0f;
+            c *= 31 / 255.0f;
+            a += 0.5f;
+            b += 0.5f;
+            c += 0.5f;
+            a = roundf(a) * (1.0f / 31);
+            b = roundf(b) * (1.0f / 63);
+            c = roundf(c) * (1.0f / 31);
+#else
+            a *= 1 / 255.0f;
+            b *= 1 / 255.0f;
+            c *= 1 / 255.0f;
+#endif
+
+            if (SRGB) {
+                //gamma correction
+                rgbout[i + 0] = powf(a, 2.2f);
+                rgbout[i + 1] = powf(b, 2.2f);
+                rgbout[i + 2] = powf(c, 2.2f);
+            }
+            else {
+                rgbout[i + 0] = a;
+                rgbout[i + 1] = b;
+                rgbout[i + 2] = c;
+            }
         }
+
         if (NB < 4)
             rgbout[i + 3] = 1.0f;
         else
@@ -197,7 +221,7 @@ inline uint int_low_pow2(uint x) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool HighPass::decompose(const uint8_t* rgbx, uint len, uint pitch, bool srgbin, bool tonormal, int toyuv)
+bool HighPass::decompose(const uint8_t* rgbx, uint len, uint pitch, bool srgbin, bool tonormal)
 {
     if ((len & (len - 1)) != 0)
         return false;           //not a power of two
@@ -272,13 +296,6 @@ bool HighPass::decompose(const uint8_t* rgbx, uint len, uint pitch, bool srgbin,
         ps[1] = 0;
         ps[2] = 0;
     }
-    else if (toyuv < 0) {
-        //diffuse delta texture
-        // encode as YUV delta from the average color
-        ps[0] = 0.5;
-        ps[1] = 0.5;
-        ps[2] = 0.5;
-    }
     else {
         //align the toplevel sum
         uint r = uint(ps[0] * 255 + 0.5);
@@ -315,7 +332,7 @@ void HighPass::reconstruct_level(int level, int unfiltered)
     pr[2] = ps[-4 + 2];
     pr[3] = ps[-4 + 3];
 
-    int levsup = _levels - unfiltered - level;
+    int levsup = _levels - 1 - level - unfiltered;
 
     for (int i = 0; i < level; ++i)
     {
@@ -396,10 +413,10 @@ void HighPass::get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool tonor
 }
 
 
-bool high_pass(nvtt::InputOptions* input, nv::Image* image, bool linear, bool to_normal, int to_yuv, int skip_mips)
+bool high_pass(nvtt::InputOptions* input, nv::Image* image, bool linear, bool to_normal, bool to_yuv, int skip_mips)
 {
     HighPass hp;
-    if (!hp.decompose((const uint8_t*)image->pixels(), image->width, 0, !linear, to_normal, to_yuv))
+    if (!hp.decompose((const uint8_t*)image->pixels(), image->width, 0, !linear, to_normal))
         return false;
 
     hp.reconstruct(skip_mips);// srgb ? nmipmaps - 10 : 0);
