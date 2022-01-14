@@ -15,6 +15,8 @@ inline void bgr_to_coycg(const float rgbin[], float yog[3])
     float Y = (r + 2 * g + b) * 0.25f;
     float Co = (2 * r - 2 * b) * 0.25f;
     float Cg = (-r + 2 * g - b) * 0.25f;
+    Co *= 2;
+    Cg *= 2;
     const float bias = 15.0f / 31;// 127.f / 255;
     yog[2] = bias * (2*Co + 1);
     yog[1] = Y;
@@ -78,15 +80,9 @@ static void load_row(const uint8_t* rgbin, float* rgbout, uint len)
 
 #if 0
             //round to BC1 resolution
-            a *= 31 / 255.0f;
-            b *= 63 / 255.0f;
-            c *= 31 / 255.0f;
-            a += 0.5f;
-            b += 0.5f;
-            c += 0.5f;
-            a = roundf(a) * (1.0f / 31);
-            b = roundf(b) * (1.0f / 63);
-            c = roundf(c) * (1.0f / 31);
+            a = roundf(a * (31 / 255.0f)) * (1.0f / 31);
+            b = roundf(b * (63 / 255.0f)) * (1.0f / 63);
+            c = roundf(c * (31 / 255.0f)) * (1.0f / 31);
 #else
             a *= 1 / 255.0f;
             b *= 1 / 255.0f;
@@ -243,9 +239,19 @@ bool HighPass::decompose(const uint8_t* rgbx, uint len, uint pitch, bool srgbin,
         tonormal ? &load_row<4, false, true> :
         srgbin ? &load_row<4, true, false> : &load_row<4, false, false>;
 
+    float smin[4] = {1, 1, 1, 1};
+    float smax[4] = {0, 0, 0, 0};
 
     for (uint i = 0; i < len; ++i, ps += 4 * len, rgbx += pitch) {
         load_row_fn(rgbx, ps, len);
+
+        const float* pr = ps;
+        for (uint j = 0; j < len; ++j, pr += 4) {
+            for (int c = 0; c < 4; ++c) {
+                if (pr[c] > smax[c]) smax[c] = pr[c];
+                if (pr[c] < smin[c]) smin[c] = pr[c];
+            }
+        }
     }
 
     pitch = 4 * len;
@@ -380,6 +386,12 @@ void HighPass::get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool tonor
 
         for (uint k = 0; k < size; k += 4)
         {
+            const int K = 2047483673;
+            const float IRANGE = float(1.0 / 2147483648.0);
+
+            int p = (K * k + 1) * k;
+            float noise = p * IRANGE;   //-1..1
+
             if (tonorm) {
                 float blue2 = 1 - (ps[1] * ps[1] + ps[2] * ps[2]);
                 float blue = blue2 > 0 ? sqrtf(blue2) : 0.0f;
@@ -392,8 +404,10 @@ void HighPass::get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool tonor
                 fvec[1] = powf(saturate(ps[1]), 1 / 2.2f);
                 fvec[2] = powf(saturate(ps[2]), 1 / 2.2f);
 
-                if (toyuv)
+                if (toyuv) {
                     bgr_to_coycg(fvec, fvec);
+                    fvec[1] += (0.5f / 63) * noise;
+                }
             }
             else {
                 fvec[0] = saturate(ps[0]);
