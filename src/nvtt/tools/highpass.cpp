@@ -15,8 +15,8 @@ inline void bgr_to_coycg(const float rgbin[], float yog[3])
     float Y = (r + 2 * g + b) * 0.25f;
     float Co = (2 * r - 2 * b) * 0.25f;
     float Cg = (-r + 2 * g - b) * 0.25f;
-    Co *= 2;
-    Cg *= 2;
+    //Co *= 2;
+    //Cg *= 2;
     const float bias = 15.0f / 31;// 127.f / 255;
     yog[2] = bias * (2*Co + 1);
     yog[1] = Y;
@@ -26,7 +26,7 @@ inline void bgr_to_coycg(const float rgbin[], float yog[3])
 ////////////////////////////////////////////////////////////////////////////////
 struct HighPass
 {
-    bool decompose(const uint8_t* rgbx, uint len, uint pitch, bool srgbin, bool tonorm);
+    bool decompose(const uint8_t* rgbx, uint len, uint pitch, float noise, bool srgbin, bool tonorm);
     void reconstruct(int unfiltered);
 
     void get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool tonorm, bool toyuv);
@@ -217,7 +217,7 @@ inline uint int_low_pow2(uint x) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool HighPass::decompose(const uint8_t* rgbx, uint len, uint pitch, bool srgbin, bool tonormal)
+bool HighPass::decompose(const uint8_t* rgbx, uint len, uint pitch, float noise, bool srgbin, bool tonormal)
 {
     if ((len & (len - 1)) != 0)
         return false;           //not a power of two
@@ -245,11 +245,17 @@ bool HighPass::decompose(const uint8_t* rgbx, uint len, uint pitch, bool srgbin,
     for (uint i = 0; i < len; ++i, ps += 4 * len, rgbx += pitch) {
         load_row_fn(rgbx, ps, len);
 
-        const float* pr = ps;
-        for (uint j = 0; j < len; ++j, pr += 4) {
-            for (int c = 0; c < 4; ++c) {
-                if (pr[c] > smax[c]) smax[c] = pr[c];
-                if (pr[c] < smin[c]) smin[c] = pr[c];
+        if (noise > 0) {
+            float scaled_noise = noise * (1.0f / 256);
+            const int K = 2047483673;
+            const float IRANGE = float(1.0 / 2147483648.0);
+
+            uint n = 4 * len;
+            for (uint j = 0; j < n; ++j) {
+                int k = i * n + j;
+                int p = (K * k + 1) * k;
+                float noiseval = p * IRANGE;   //-1..1
+                ps[j] += noiseval * scaled_noise;
             }
         }
     }
@@ -386,11 +392,11 @@ void HighPass::get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool tonor
 
         for (uint k = 0; k < size; k += 4)
         {
-            const int K = 2047483673;
-            const float IRANGE = float(1.0 / 2147483648.0);
-
-            int p = (K * k + 1) * k;
-            float noise = p * IRANGE;   //-1..1
+            //const int K = 2047483673;
+            //const float IRANGE = float(1.0 / 2147483648.0);
+            //
+            //int p = (K * k + 1) * k;
+            //float noise = p * IRANGE;   //-1..1
 
             if (tonorm) {
                 float blue2 = 1 - (ps[1] * ps[1] + ps[2] * ps[2]);
@@ -406,7 +412,7 @@ void HighPass::get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool tonor
 
                 if (toyuv) {
                     bgr_to_coycg(fvec, fvec);
-                    fvec[1] += (0.5f / 63) * noise;
+                    //fvec[1] += (0.5f / 63) * noise;
                 }
             }
             else {
@@ -427,10 +433,10 @@ void HighPass::get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool tonor
 }
 
 
-bool high_pass(nvtt::InputOptions* input, nv::Image* image, bool linear, bool to_normal, bool to_yuv, int skip_mips)
+bool high_pass(nvtt::InputOptions* input, nv::Image* image, bool linear, bool to_normal, bool to_yuv, int skip_mips, float noise)
 {
     HighPass hp;
-    if (!hp.decompose((const uint8_t*)image->pixels(), image->width, 0, !linear, to_normal))
+    if (!hp.decompose((const uint8_t*)image->pixels(), image->width, 0, noise, !linear, to_normal))
         return false;
 
     hp.reconstruct(skip_mips);// srgb ? nmipmaps - 10 : 0);
