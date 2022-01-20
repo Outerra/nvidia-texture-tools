@@ -194,7 +194,7 @@ struct MyErrorHandler : public nvtt::ErrorHandler
 };
 
 
-bool high_pass(nvtt::InputOptions* input, nv::Image* image, bool linear, bool to_normal, bool to_yuv, int skip_mips, float noise);
+bool high_pass(nvtt::InputOptions* input, nv::Image* image, bool linear, bool to_normal, bool to_yuv, int skip_mips, bool scale_mips);
 
 
 // Set color to normal map conversion options.
@@ -279,8 +279,8 @@ int main(int argc, char *argv[])
     bool premultiplyAlpha = false;
     bool highPassMips = false;
     bool highPassYUV = false;
+    bool highPassScaleMips = false;
     int highPassSkip = 0;
-    float addNoise = 0;
     float scaleCoverage[4] = {-1, -1, -1, -1};
     bool scaleCoverageChannels[4] = {false, false, false, false};
     nvtt::MipmapFilter mipmapFilter = nvtt::MipmapFilter_Box;
@@ -376,23 +376,8 @@ int main(int argc, char *argv[])
         else if (strcmp("-yuv", argv[i]) == 0) {
             highPassYUV = true;
         }
-        else if (strcmp("-noise", argv[i]) == 0) {
-            float noise = 0.5f;
-
-            //read optional noise value
-            if (isdigit(argv[i + 1][0])) {
-                i++;
-                char* end;
-                noise = strtof(argv[i], &end);
-
-                if (*end != 0) {
-                    printf("Unrecognized characters: %s\n", end);
-                    argerror = true;
-                    break;
-                }
-            }
-
-            addNoise = noise;
+        else if (strcmp("-scale_mips", argv[i]) == 0) {
+            highPassScaleMips = true;
         }
         else if (strcmp("-coverage", argv[i]) == 0)
         {
@@ -915,7 +900,7 @@ int main(int argc, char *argv[])
             if (highPassMips) {
                 inputOptions.setTextureLayout(nvtt::TextureType_2D, image.width, image.height);
 
-                if (!high_pass(&inputOptions, &image, linear || normal, normal, highPassYUV, highPassSkip, addNoise)) {
+                if (!high_pass(&inputOptions, &image, linear || normal, normal, highPassYUV, highPassSkip, highPassScaleMips)) {
                     fprintf(stderr, "Error applying high pass filter.\n");
                     return 1;
                 }
@@ -1079,7 +1064,7 @@ int main(int argc, char *argv[])
     nvtt::CompressionOptions compressionOptions;
     compressionOptions.setFormat(format);
 
-    //compressionOptions.setQuantization(/*color dithering*/true, /*alpha dithering*/false, /*binary alpha*/false);
+    compressionOptions.setQuantization(/*color dithering*/true, /*alpha dithering*/false, /*binary alpha*/false);
 
     if (format == nvtt::Format_BC2) {
         // Dither alpha when using BC2.
@@ -1131,8 +1116,8 @@ int main(int argc, char *argv[])
     }
     else
     {
-        compressionOptions.setQuality(nvtt::Quality_Normal);
-        //compressionOptions.setQuality(nvtt::Quality_Production);
+        //compressionOptions.setQuality(nvtt::Quality_Normal);
+        compressionOptions.setQuality(nvtt::Quality_Production);
         //compressionOptions.setQuality(nvtt::Quality_Highest);
     }
 

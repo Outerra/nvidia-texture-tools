@@ -26,10 +26,10 @@ inline void bgr_to_coycg(const float rgbin[], float yog[3])
 ////////////////////////////////////////////////////////////////////////////////
 struct HighPass
 {
-    bool decompose(const uint8_t* rgbx, uint len, uint pitch, float noise, bool srgbin, bool tonorm);
+    bool decompose(const uint8_t* rgbx, uint len, uint pitch, bool srgbin, bool tonorm);
     void reconstruct(int unfiltered);
 
-    void get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool tonorm, bool toyuv);
+    void get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool tonorm, bool toyuv, bool scale_mips);
 
 protected:
 
@@ -43,6 +43,7 @@ protected:
     uint8_t* _wrkgray = 0;
     float* _wavbuf = 0;
     float* _reconst = 0;
+    float _avg[3];
 
     struct pass_info {
         float median[3] = {0,};
@@ -217,7 +218,7 @@ inline uint int_low_pow2(uint x) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool HighPass::decompose(const uint8_t* rgbx, uint len, uint pitch, float noise, bool srgbin, bool tonormal)
+bool HighPass::decompose(const uint8_t* rgbx, uint len, uint pitch, bool srgbin, bool tonormal)
 {
     if ((len & (len - 1)) != 0)
         return false;           //not a power of two
@@ -244,20 +245,6 @@ bool HighPass::decompose(const uint8_t* rgbx, uint len, uint pitch, float noise,
 
     for (uint i = 0; i < len; ++i, ps += 4 * len, rgbx += pitch) {
         load_row_fn(rgbx, ps, len);
-
-        if (noise > 0) {
-            float scaled_noise = noise * (1.0f / 256);
-            const int K = 2047483673;
-            const float IRANGE = float(1.0 / 2147483648.0);
-
-            uint n = 4 * len;
-            for (uint j = 0; j < n; ++j) {
-                int k = i * n + j;
-                int p = (K * k + 1) * k;
-                float noiseval = p * IRANGE;   //-1..1
-                ps[j] += noiseval * scaled_noise;
-            }
-        }
     }
 
     pitch = 4 * len;
@@ -318,6 +305,10 @@ bool HighPass::decompose(const uint8_t* rgbx, uint len, uint pitch, float noise,
         ps[2] = b / 255.f;
     }
 
+    _avg[0] = ps[0];
+    _avg[1] = ps[1];
+    _avg[2] = ps[2];
+
     return true;
 }
 
@@ -373,42 +364,53 @@ void HighPass::reconstruct_level(int level, int unfiltered)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void HighPass::get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool tonorm, bool toyuv)
+void HighPass::get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool tonorm, bool toyuv, bool scale_mips)
 {
     const float* ps = _sums;
     uint8_t* pw = (uint8_t*)malloc(_count);
 
     //mips.alloc(_levels + 1);
 
-    for (uint i = _levels + 1; i > 0; )
+    for (uint mip = _levels + 1; mip > 0; )
     {
-        --i;
-        uint width = 1 << i;
-        uint size = 4 << i << i;
+        --mip;
+        uint width = 1 << mip;
+        uint size = 4 << mip << mip;
 
         //mips[_levels - i] = pw;
         const uint8_t* pwl = pw;
         float fvec[3];
 
+        const float scale = 1 << (_levels - mip);
+
         for (uint k = 0; k < size; k += 4)
         {
-            //const int K = 2047483673;
-            //const float IRANGE = float(1.0 / 2147483648.0);
-            //
-            //int p = (K * k + 1) * k;
-            //float noise = p * IRANGE;   //-1..1
+            if (scale_mips && mip > 0) {
+                //store mips relative to the root sum, adaptive scaling
+                float r = (ps[0] - _avg[0]) * scale + _avg[0];//(127.0 / 255);
+                float g = (ps[1] - _avg[1]) * scale + _avg[1];//(127.0 / 255);
+                float b = (ps[2] - _avg[2]) * scale + _avg[2];//(127.0 / 255);
+                fvec[0] = r;
+                fvec[1] = g;
+                fvec[2] = b;
+            }
+            else {
+                fvec[0] = ps[0];
+                fvec[1] = ps[1];
+                fvec[2] = ps[2];
+            }
 
             if (tonorm) {
-                float blue2 = 1 - (ps[1] * ps[1] + ps[2] * ps[2]);
+                float blue2 = 1 - (fvec[1] * fvec[1] + fvec[2] * fvec[2]);
                 float blue = blue2 > 0 ? sqrtf(blue2) : 0.0f;
                 fvec[0] = saturate((blue + 1) * (127 / 255.f));
-                fvec[1] = saturate((ps[1] + 1) * (127 / 255.f));
-                fvec[2] = saturate((ps[2] + 1) * (127 / 255.f));
+                fvec[1] = saturate((fvec[1] + 1) * (127 / 255.f));
+                fvec[2] = saturate((fvec[2] + 1) * (127 / 255.f));
             }
             else if (tosrgb || toyuv) {
-                fvec[0] = powf(saturate(ps[0]), 1 / 2.2f);
-                fvec[1] = powf(saturate(ps[1]), 1 / 2.2f);
-                fvec[2] = powf(saturate(ps[2]), 1 / 2.2f);
+                fvec[0] = powf(saturate(fvec[0]), 1 / 2.2f);
+                fvec[1] = powf(saturate(fvec[1]), 1 / 2.2f);
+                fvec[2] = powf(saturate(fvec[2]), 1 / 2.2f);
 
                 if (toyuv) {
                     bgr_to_coycg(fvec, fvec);
@@ -416,9 +418,9 @@ void HighPass::get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool tonor
                 }
             }
             else {
-                fvec[0] = saturate(ps[0]);
-                fvec[1] = saturate(ps[1]);
-                fvec[2] = saturate(ps[2]);
+                fvec[0] = saturate(fvec[0]);
+                fvec[1] = saturate(fvec[1]);
+                fvec[2] = saturate(fvec[2]);
             }
 
             *pw++ = uint8_t(0.5f + 255 * fvec[0]);
@@ -428,20 +430,20 @@ void HighPass::get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool tonor
             ps += 4;
         }
 
-        input->setMipmapData(pwl, width, width, 1, 0, _levels - i);
+        input->setMipmapData(pwl, width, width, 1, 0, _levels - mip);
     }
 }
 
 
-bool high_pass(nvtt::InputOptions* input, nv::Image* image, bool linear, bool to_normal, bool to_yuv, int skip_mips, float noise)
+bool high_pass(nvtt::InputOptions* input, nv::Image* image, bool linear, bool to_normal, bool to_yuv, int skip_mips, bool scale_mips)
 {
     HighPass hp;
-    if (!hp.decompose((const uint8_t*)image->pixels(), image->width, 0, noise, !linear, to_normal))
+    if (!hp.decompose((const uint8_t*)image->pixels(), image->width, 0, !linear, to_normal))
         return false;
 
     hp.reconstruct(skip_mips);// srgb ? nmipmaps - 10 : 0);
 
-    hp.get_image_mips(input, !linear, to_normal, to_yuv);
+    hp.get_image_mips(input, !linear, to_normal, to_yuv, scale_mips);
 
     return true;
 }
