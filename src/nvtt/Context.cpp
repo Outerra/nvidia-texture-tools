@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2011 Ignacio Castano <castano@gmail.com>
 // Copyright (c) 2008-2009 NVIDIA Corporation -- Ignacio Castano <icastano@nvidia.com>
-// 
+//
 // Permission is hereby granted, free of charge, to any person
 // obtaining a copy of this software and associated documentation
 // files (the "Software"), to deal in the Software without
@@ -9,10 +9,10 @@
 // copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following
 // conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
 // OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -124,7 +124,7 @@ int Compressor::estimateSize(const InputOptions & inputOptions, const Compressio
     int w = inputOptions.m.width;
     int h = inputOptions.m.height;
     int d = inputOptions.m.depth;
-    
+
     getTargetExtent(&w, &h, &d, inputOptions.m.maxExtent, inputOptions.m.roundMode, inputOptions.m.textureType);
 
     int mipmapCount = 1;
@@ -202,9 +202,9 @@ int Compressor::estimateSize(int w, int h, int d, int mipmapCount, const Compres
         size += computeImageSize(w, h, d, bitCount, pitchAlignment, format);
 
         // Compute extents of next mipmap:
-        w = max(1, w / 2);
-        h = max(1, h / 2);
-        d = max(1, d / 2);
+        w = w >> 1; if (!w) w = 1;
+        h = h >> 1; if (!h) h = 1;
+        d = d >> 1; if (!d) d = 1;
     }
 
     return size;
@@ -278,8 +278,10 @@ bool Compressor::Private::compress(const InputOptions::Private & inputOptions, c
             }
 
             // renormalize blue channel to avoid quantization artifacts in mipmaps
-            if (img.isNormalMap() && inputOptions.normalizeMipmaps) {
-                img.renormalizeNormalMap();
+            if (f == 0 && img.isNormalMap() && inputOptions.normalizeMipmaps) {
+                img.expandNormals();
+                img.computeBlueNormal();
+                img.packNormals();
             }
 
             // Resize input.
@@ -555,13 +557,13 @@ namespace
         GL_R16 = 0x822A,
         GL_RGBA16F = 0x881A,
         GL_R11F_G11F_B10F = 0x8C3A,
-        
+
         // type
         GL_UNSIGNED_BYTE = 0x1401,
         GL_HALF_FLOAT = 0x140B,
         GL_UNSIGNED_INT_10F_11F_11F_REV = 0x8C3B,
         GL_UNSIGNED_SHORT = 0x1403,
-        
+
         // format
         GL_RED = 0x1903,
         GL_RGB = 0x1907,
@@ -593,15 +595,15 @@ namespace
         for (int i = 0; i < s_glFormatCount; i++)
         {
             if (s_glFormats[i].pixelFormat.bitcount == bitcount &&
-            	s_glFormats[i].pixelFormat.rmask == rmask &&
-            	s_glFormats[i].pixelFormat.gmask == gmask &&
-            	s_glFormats[i].pixelFormat.bmask == bmask &&
-            	s_glFormats[i].pixelFormat.amask == amask)
+                s_glFormats[i].pixelFormat.rmask == rmask &&
+                s_glFormats[i].pixelFormat.gmask == gmask &&
+                s_glFormats[i].pixelFormat.bmask == bmask &&
+                s_glFormats[i].pixelFormat.amask == amask)
             {
                 return &s_glFormats[i];
             }
         }
-        
+
         return nullptr;
     }
 }
@@ -649,6 +651,7 @@ bool Compressor::Private::outputHeader(nvtt::TextureType textureType, int w, int
 
         header.reserved[0] = NV_MAKEFOURCC('O', 'T', 'N', 'V');
         header.reserved[1] = NV_MAKEFOURCC('-', 'D', 'D', 'S');
+        header.reserved[2] = NV_MAKEFOURCC('2', '2', '0', '1');
 
         bool supported = true;
 
@@ -875,7 +878,7 @@ bool Compressor::Private::outputHeader(nvtt::TextureType textureType, int w, int
 
         return writeSucceed;
     }
-    else if (outputOptions.container == Container_KTX) 
+    else if (outputOptions.container == Container_KTX)
     {
         KtxHeader header;
         // TODO cube arrays
@@ -912,7 +915,7 @@ bool Compressor::Private::outputHeader(nvtt::TextureType textureType, int w, int
         if (compressionOptions.format == Format_RGBA)
         {
             const uint bitcount = compressionOptions.getBitCount();
-            
+
             if (compressionOptions.pixelType == PixelType_Float) {
                 if (compressionOptions.rsize == 16 && compressionOptions.gsize == 16 && compressionOptions.bsize == 16 && compressionOptions.asize == 16) {
                     header.glType = GL_HALF_FLOAT;
@@ -942,7 +945,7 @@ bool Compressor::Private::outputHeader(nvtt::TextureType textureType, int w, int
                 }
                 else {
                     const GLFormatDescriptor* glFormatDesc = findGLFormat(compressionOptions.bitcount, compressionOptions.rmask, compressionOptions.gmask, compressionOptions.bmask, compressionOptions.amask);
-                    
+
                     if (glFormatDesc) {
                         header.glType = glFormatDesc->glType;
                         header.glTypeSize = glFormatDesc->glTypeSize;
@@ -961,7 +964,7 @@ bool Compressor::Private::outputHeader(nvtt::TextureType textureType, int w, int
             header.glType = 0;
             header.glTypeSize = 1;
             header.glFormat = 0;
-            
+
             if (compressionOptions.format == Format_DXT1 || compressionOptions.format == Format_DXT1n) {
                 header.glInternalFormat = outputOptions.srgb ? KTX_INTERNAL_COMPRESSED_SRGB_S3TC_DXT1 : KTX_INTERNAL_COMPRESSED_RGB_S3TC_DXT1;
                 header.glBaseInternalFormat = KTX_BASE_INTERNAL_RGB;
@@ -1019,7 +1022,7 @@ bool Compressor::Private::outputHeader(nvtt::TextureType textureType, int w, int
                 supported = false;
             }
         }
-        
+
         if (!supported)
         {
             // This container does not support the requested format.

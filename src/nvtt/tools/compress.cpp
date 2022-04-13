@@ -1,5 +1,5 @@
 // Copyright NVIDIA Corporation 2007 -- Ignacio Castano <icastano@nvidia.com>
-// 
+//
 // Permission is hereby granted, free of charge, to any person
 // obtaining a copy of this software and associated documentation
 // files (the "Software"), to deal in the Software without
@@ -8,10 +8,10 @@
 // copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following
 // conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
 // OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -230,10 +230,10 @@ void setColorMap(nvtt::InputOptions & inputOptions)
 // Set options for linear maps.
 void setLinearMap(nvtt::InputOptions & inputOptions)
 {
-	inputOptions.setNormalMap(false);
-	inputOptions.setConvertToNormalMap(false);
-	inputOptions.setGamma(1.0f, 1.0f);
-	inputOptions.setNormalizeMipmaps(false);
+    inputOptions.setNormalMap(false);
+    inputOptions.setConvertToNormalMap(false);
+    inputOptions.setGamma(1.0f, 1.0f);
+    inputOptions.setNormalizeMipmaps(false);
 }
 
 // convert surface to image
@@ -320,10 +320,10 @@ int main(int argc, char *argv[])
         {
             color2normal = true;
         }
-		else if (strcmp("-linear", argv[i]) == 0)
-		{
-			linear = true;
-		}
+        else if (strcmp("-linear", argv[i]) == 0)
+        {
+            linear = true;
+        }
         else if (strcmp("-clamp", argv[i]) == 0)
         {
         }
@@ -564,7 +564,7 @@ int main(int argc, char *argv[])
         {
             srgb = true;
         }
-        
+
         else if (argv[i][0] != '-')
         {
             input = argv[i];
@@ -574,8 +574,8 @@ int main(int argc, char *argv[])
                 if (output.endsWith("\\") || output.endsWith("/")) {
                     //only path specified
                     output.append(input.fileName());
-				    output.stripExtension();
-				    output.append(zstd ? ".zds" : ".dds");
+                    output.stripExtension();
+                    output.append(zstd ? ".zds" : ".dds");
                 }
                 else {
                     outProvided = true;
@@ -587,7 +587,7 @@ int main(int argc, char *argv[])
             {
                 output.copy(input.str());
                 output.stripExtension();
-                
+
                 if (ktx)
                 {
                     output.append(".ktx");
@@ -600,11 +600,11 @@ int main(int argc, char *argv[])
 
             break;
         }
-		else
-		{
-			printf("Warning: unrecognized option \"%s\"\n", argv[i]);
+        else
+        {
+            printf("Warning: unrecognized option \"%s\"\n", argv[i]);
             argerror = true;
-		}
+        }
     }
 
     if (argerror) {
@@ -620,7 +620,7 @@ int main(int argc, char *argv[])
     time_t imtime = 0;
 
     if (ifmodified) {
-        //check if output isn't newer 
+        //check if output isn't newer
         struct stat fsi, fso;
 
         bool failed = false;
@@ -1026,15 +1026,15 @@ int main(int argc, char *argv[])
             //inputOptions.setRoundMode(nvtt::RoundMode_ToPreviousPowerOfTwo);
         }*/
 
-        if (linear)
-        {
-            setLinearMap(inputOptions);
-        }
-        else if (normal)
+        if (normal)
         {
             setNormalMap(inputOptions);
             if (highPassMips)
                 inputOptions.setNormalizeMipmaps(false);
+        }
+        else if (linear)
+        {
+            setLinearMap(inputOptions);
         }
         else if (color2normal)
         {
@@ -1126,7 +1126,7 @@ int main(int argc, char *argv[])
         compressionOptions.setColorWeights(1, 1, 0);
     }
 
-    
+
     //compressionOptions.setColorWeights(0.2126, 0.7152, 0.0722);
     //compressionOptions.setColorWeights(0.299, 0.587, 0.114);
     //compressionOptions.setColorWeights(3, 4, 2);
@@ -1141,7 +1141,7 @@ int main(int argc, char *argv[])
 
     MyErrorHandler errorHandler;
     MyOutputHandler* outputHandler = 0;
-    
+
     if (zstd)
         outputHandler = new ZstdOutputHandler(output.str());
     else
@@ -1156,7 +1156,7 @@ int main(int argc, char *argv[])
     nvtt::Context context;
     context.enableCudaAcceleration(!nocuda);
 
-    if (!silent) 
+    if (!silent)
     {
         printf("CUDA acceleration ");
         if (context.isCudaAccelerationEnabled())
@@ -1191,10 +1191,10 @@ int main(int argc, char *argv[])
     }
     else
     {
-	// Automatically use dds10 if compressing to BC6 or BC7
+    // Automatically use dds10 if compressing to BC6 or BC7
         if (format == nvtt::Format_BC6 || format == nvtt::Format_BC7) {
-		dds10 = true;
-	}
+        dds10 = true;
+    }
 
         if (dds10) {
         outputOptions.setContainer(nvtt::Container_DDS10);
@@ -1203,7 +1203,7 @@ int main(int argc, char *argv[])
             outputOptions.setContainer(nvtt::Container_DDS);
         }
     }
-    
+
     if (srgb) {
         outputOptions.setSrgbFlag(true);
     }
@@ -1223,7 +1223,7 @@ int main(int argc, char *argv[])
         if (!context.compress(image, 0, 0, compressionOptions, outputOptions)) {
             fprintf(stderr, "Error compressing file.\n");
             return EXIT_FAILURE;
-        } 
+        }
     }
     else {
         if (!context.process(inputOptions, compressionOptions, outputOptions)) {

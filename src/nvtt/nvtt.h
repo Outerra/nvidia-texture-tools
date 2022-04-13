@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2011 Ignacio Castano <castano@gmail.com>
 // Copyright (c) 2007-2009 NVIDIA Corporation -- Ignacio Castano <icastano@nvidia.com>
-// 
+//
 // Permission is hereby granted, free of charge, to any person
 // obtaining a copy of this software and associated documentation
 // files (the "Software"), to deal in the Software without
@@ -9,10 +9,10 @@
 // copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following
 // conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
 // OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -182,7 +182,7 @@ namespace nvtt
 
         NVTT_API void setPitchAlignment(int pitchAlignment);
 
-        // @@ I wish this wasn't part of the compression options. Quantization is applied before compression. We don't have compressors with error diffusion. 
+        // @@ I wish this wasn't part of the compression options. Quantization is applied before compression. We don't have compressors with error diffusion.
         // @@ These options are only taken into account when using the InputOptions API.
         NVTT_API void setQuantization(bool colorDithering, bool alphaDithering, bool binaryAlpha, int alphaThreshold = 127);
 
@@ -274,7 +274,7 @@ namespace nvtt
     enum ShapeRestriction
     {
         ShapeRestriction_None,
-        ShapeRestriction_Square,    
+        ShapeRestriction_Square,
     };
 
 
@@ -573,7 +573,7 @@ namespace nvtt
         // Normal map transforms.
         NVTT_API void toNormalMap(float sm, float medium, float big, float large);
         NVTT_API void normalizeNormalMap();
-        NVTT_API void renormalizeNormalMap();
+        NVTT_API void computeBlueNormal();
         NVTT_API void transformNormals(NormalTransform xform);
         NVTT_API void reconstructNormals(NormalTransform xform);
         NVTT_API void toCleanNormalMap();

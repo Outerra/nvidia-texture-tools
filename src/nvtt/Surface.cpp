@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2011 Ignacio Castano <castano@gmail.com>
 // Copyright (c) 2007-2009 NVIDIA Corporation -- Ignacio Castano <icastano@nvidia.com>
-// 
+//
 // Permission is hereby granted, free of charge, to any person
 // obtaining a copy of this software and associated documentation
 // files (the "Software"), to deal in the Software without
@@ -9,10 +9,10 @@
 // copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following
 // conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
 // OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -154,7 +154,7 @@ namespace
 
 bool nv::canMakeNextMipmap(uint w, uint h, uint d, uint min_size)
 {
-    if (min_size==1u) {  
+    if (min_size==1u) {
         if(w==1u && h==1u && d==1u) {
             return false;
         }
@@ -305,7 +305,7 @@ void nv::getTargetExtent(int * width, int * height, int * depth, int maxExtent, 
             h = md;
             d = md;
         }
-        else if (textureType == TextureType_Cube) 
+        else if (textureType == TextureType_Cube)
         {
             int md = nv::min(w, h);
             w = md;
@@ -313,7 +313,7 @@ void nv::getTargetExtent(int * width, int * height, int * depth, int maxExtent, 
             d = 1;
         }
     }
-    else 
+    else
     {
         if (textureType == TextureType_2D || textureType == TextureType_Cube)
         {
@@ -474,7 +474,7 @@ float Surface::average(int channel, int alpha_channel/*= -1*/, float gamma /*= 2
     else {
         float alpha_sum = 0.0f;
         const float * a = m->image->channel(alpha_channel);
-        
+
         for (uint i = 0; i < count; i++) {
             sum += powf(c[i], gamma) * a[i];
             alpha_sum += a[i];
@@ -622,7 +622,7 @@ bool Surface::load(const char * fileName, bool * hasAlpha/*= NULL*/)
                     this->setImage2D(nvtt::Format_BC3, nvtt::Decoder_D3D10, w, h, data);
                 }
                 else {
-                    // @@ 
+                    // @@
                     nvCheck(false && "Format not handled with DDS9 header.");
                 }
             }
@@ -1232,7 +1232,7 @@ void Surface::resizeMakeSquare(int maxExtent, RoundMode roundMode, ResizeFilter 
 
     getTargetExtent(&w, &h, &d, maxExtent, roundMode, m->type, nvtt::ShapeRestriction_Square);
 
-    if (m->type == TextureType_2D) 
+    if (m->type == TextureType_2D)
     {
         nvDebugCheck(d==1);
     }
@@ -1290,7 +1290,7 @@ void Surface::autoResize(float errorTolerance, RoundMode mode, ResizeFilter filt
 
         // Resize always from original? This is more expensive, but should produce higher quality.
         //resized = original;
-        
+
         resized.resize(w, h, d, filter);
 
 #if 0
@@ -1820,7 +1820,7 @@ void Surface::fill(float red, float green, float blue, float alpha)
 void Surface::roughnessMipFromNormal(const nvtt::Surface& normal)
 {
     if (isNull()) return;
-    
+
     m->image->roughnessMipFromNormal(*normal.m->image);
 }
 
@@ -1960,7 +1960,7 @@ void Surface::fromRGBM(float range/*= 1*/, float threshold/*= 0.25*/)
 
     threshold = ::clamp(threshold, 1e-6f, 1.0f);
 
-	FloatImage * img = m->image;
+    FloatImage * img = m->image;
     float * r = img->channel(0);
     float * g = img->channel(1);
     float * b = img->channel(2);
@@ -2823,14 +2823,14 @@ void Surface::normalizeNormalMap()
     nv::normalizeNormalMap(m->image);
 }
 
-void Surface::renormalizeNormalMap()
+void Surface::computeBlueNormal()
 {
     if (isNull()) return;
     if (!m->isNormalMap) return;
 
     detach();
 
-    nv::renormalizeNormalMap(m->image);
+    nv::computeBlueNormal(m->image);
 }
 
 void Surface::transformNormals(NormalTransform xform)
@@ -3429,7 +3429,7 @@ nvtt::Surface nvtt::histogram(const Surface & img, float minRange, float maxRang
         R = nv::clamp(R, 0, width-1);
         G = nv::clamp(G, 0, width-1);
         B = nv::clamp(B, 0, width-1);
-        
+
         // Alpha weighted histogram?
         float A = nv::saturate(a[i]);
 
@@ -3439,7 +3439,7 @@ nvtt::Surface nvtt::histogram(const Surface & img, float minRange, float maxRang
     }
 
 #elif 1
-    
+
     float exposure = 0.22f;
 
     //int E = 8, M = 23;    // float
@@ -3514,7 +3514,7 @@ nvtt::Surface nvtt::histogram(const Surface & img, float minRange, float maxRang
             float fc = fr * M;
 
             fc /= exposure;
-            
+
             //fc /= (fc + 1);             // Reindhart tone mapping.
             fc = 1 - exp2f(-fc);        // Halo2 tone mapping.
 
@@ -3551,7 +3551,7 @@ nvtt::Surface nvtt::histogram(const Surface & img, float minRange, float maxRang
     // Draw histogram.
     nvtt::Surface hist;
     hist.setImage(width, height, 1);
-    
+
     for (int y = 0; y < height; y++) {
         float fy = 1.0f - float(y) / (height - 1);
         for (int x = 0; x < width; x++) {

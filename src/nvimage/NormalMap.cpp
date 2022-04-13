@@ -1,5 +1,5 @@
 // Copyright NVIDIA Corporation 2007 -- Ignacio Castano <icastano@nvidia.com>
-// 
+//
 // Permission is hereby granted, free of charge, to any person
 // obtaining a copy of this software and associated documentation
 // files (the "Software"), to deal in the Software without
@@ -8,10 +8,10 @@
 // copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following
 // conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
 // OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -114,7 +114,7 @@ static FloatImage * createNormalMap(const FloatImage * img, FloatImage::WrapMode
     {
         for (uint x = 0; x < w; x++)
         {
-            
+
             img_out->pixel(3, x, y, 0) = img->pixel(3, x, y, 0);
         }
     }*/
@@ -207,10 +207,10 @@ void nv::normalizeNormalMap(FloatImage * img)
 }
 
 /// Fix blue channel in place.
-void nv::renormalizeNormalMap(FloatImage* img)
+void nv::computeBlueNormal(FloatImage* img)
 {
     nvDebugCheck(img != NULL);
 
-    img->renormalize(0);
+    img->compute_blue_normal(0);
 }
 

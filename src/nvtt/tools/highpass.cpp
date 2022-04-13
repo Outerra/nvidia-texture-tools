@@ -328,7 +328,7 @@ void HighPass::reconstruct_level(int level, int unfiltered)
 {
     const float* ps = _sums + _count - 1;
     const float* pd = _wavbuf + (4 * _width * _width - 4);
-    
+
     float* pr = _reconst + (_count - 1 - 4);
     pr[0] = ps[-4 + 0];
     pr[1] = ps[-4 + 1];
@@ -381,7 +381,7 @@ void HighPass::get_image_mips(nvtt::InputOptions* input, bool tosrgb, bool tonor
         const uint8_t* pwl = pw;
         float fvec[3];
 
-        const float scale = 1 << (_levels - mip);
+        const float scale = float(1 << (_levels - mip));
 
         for (uint k = 0; k < size; k += 4)
         {

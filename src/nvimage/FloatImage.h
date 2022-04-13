@@ -61,7 +61,7 @@ namespace nv
         void copyChannel(const FloatImage* img, uint src, uint dst);
 
         void normalize(uint base_component);
-        void renormalize(uint base_component);
+        void compute_blue_normal(uint base_component);
 
         void packNormals(uint base_component);
         void expandNormals(uint base_component);
@@ -209,12 +209,12 @@ namespace nv
 
     inline const float * FloatImage::plane(uint c, uint z) const {
         nvDebugCheck(z < m_depth);
-        return channel(c) + z * m_width * m_height;        
+        return channel(c) + z * m_width * m_height;
     }
 
     inline float * FloatImage::plane(uint c, uint z) {
         nvDebugCheck(z < m_depth);
-        return channel(c) + z * m_width * m_height;        
+        return channel(c) + z * m_width * m_height;
     }
 
     /// Get const scanline pointer.

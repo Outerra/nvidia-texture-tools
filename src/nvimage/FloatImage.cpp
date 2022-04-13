@@ -232,7 +232,7 @@ void FloatImage::normalize(uint baseComponent)
     }
 }
 
-void FloatImage::renormalize(uint baseComponent)
+void FloatImage::compute_blue_normal(uint baseComponent)
 {
     nvCheck(baseComponent + 3 <= m_componentCount);
 
@@ -579,7 +579,7 @@ float FloatImage::sampleLinearMirror(uint c, float x, float y, float z) const
 }
 
 
-/// Fast downsampling using box filter. 
+/// Fast downsampling using box filter.
 ///
 /// The extents of the image are divided by two and rounded down.
 ///
@@ -793,7 +793,7 @@ FloatImage * FloatImage::resize(const Filter & filter, uint w, uint h, WrapMode 
     // @@ Use monophase filters when frac(m_width / w) == 0
 
     AutoPtr<FloatImage> tmp_image( new FloatImage() );
-    AutoPtr<FloatImage> dst_image( new FloatImage() );	
+    AutoPtr<FloatImage> dst_image( new FloatImage() );
 
     PolyphaseKernel xkernel(filter, m_width, w, 32);
     PolyphaseKernel ykernel(filter, m_height, h, 32);
@@ -909,7 +909,7 @@ FloatImage * FloatImage::resize(const Filter & filter, uint w, uint h, WrapMode 
     nvCheck(alpha < m_componentCount);
 
     AutoPtr<FloatImage> tmp_image( new FloatImage() );
-    AutoPtr<FloatImage> dst_image( new FloatImage() );	
+    AutoPtr<FloatImage> dst_image( new FloatImage() );
 
     PolyphaseKernel xkernel(filter, m_width, w, 32);
     PolyphaseKernel ykernel(filter, m_height, h, 32);
@@ -1420,7 +1420,7 @@ float FloatImage::alphaTestCoverage(float alphaRef, int alphaChannel, float alph
     for (uint i = 0; i < count; i++) {
         if (alpha[i] > alphaRef) coverage += 1.0f; // @@ gt or lt?
     }
-    
+
     return coverage / float(w * h);
 #else
     const uint n = 4;
@@ -1459,7 +1459,7 @@ void FloatImage::roughnessMipFromNormal(const FloatImage& normal)
     const float* normal_y = normal.channel(1);
     const float* normal_z = normal.channel(2);
     float* roughness_channels[4] = {};
-    
+
     for (int c = 0; c < m_componentCount; ++c) {
         roughness_channels[c] = channel(c);
     }
@@ -1500,8 +1500,8 @@ void FloatImage::roughnessMipFromNormal(const FloatImage& normal)
                     if (ni >= normal.m_width) continue;
                     if (nj >= normal.m_height) continue;
                     const int idx = ni + nj * normal.m_width;
-                    const float dot = avg_N[0] * (normal_x[idx] * 2 - 1) 
-                        + avg_N[1] * (normal_y[idx] * 2 - 1) 
+                    const float dot = avg_N[0] * (normal_x[idx] * 2 - 1)
+                        + avg_N[1] * (normal_y[idx] * 2 - 1)
                         + avg_N[2] * (normal_z[idx] * 2 - 1);
                     r += (1 - dot) * (1 - dot) * w;
                 }
@@ -1544,7 +1544,7 @@ void FloatImage::scaleAlphaToCoverage(float desiredCoverage, float alphaRef, int
 
     // Scale alpha channel.
     scaleBias(alphaChannel, 1, alphaScale, 0.0f);
-    clamp(alphaChannel, 1, 0.0f, 1.0f); 
+    clamp(alphaChannel, 1, 0.0f, 1.0f);
 #else
     float minAlphaScale = 0.0f;
     float maxAlphaScale = 4.0f;
@@ -1577,7 +1577,7 @@ void FloatImage::scaleAlphaToCoverage(float desiredCoverage, float alphaRef, int
 
     // Scale alpha channel.
     scaleBias(alphaChannel, 1, bestAlphaScale, 0.0f);
-    clamp(alphaChannel, 1, 0.0f, 1.0f); 
+    clamp(alphaChannel, 1, 0.0f, 1.0f);
 #endif
 #if _DEBUG
     alphaTestCoverage(alphaRef, alphaChannel);
