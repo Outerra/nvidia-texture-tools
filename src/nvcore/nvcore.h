@@ -264,17 +264,8 @@ typedef uint32      uint;
 #define NV_STRING2(x) #x
 #define NV_STRING(x) NV_STRING2(x)
 
-#if NV_CC_MSVC
 #define NV_MULTI_LINE_MACRO_BEGIN do {  
-#define NV_MULTI_LINE_MACRO_END \
-    __pragma(warning(push)) \
-    __pragma(warning(disable:4127)) \
-    } while(false) \
-    __pragma(warning(pop))  
-#else
-#define NV_MULTI_LINE_MACRO_BEGIN do {
 #define NV_MULTI_LINE_MACRO_END } while(false)
-#endif
 
 #if NV_CC_CPP11
 #define nvStaticCheck(x) static_assert((x), "Static assert "#x" failed")
